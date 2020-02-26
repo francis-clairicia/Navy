@@ -22,18 +22,17 @@ class PlayerServer(Window):
         }
         self.bg = Image(constant.IMG["menu_bg"], self.window_rect.size)
         self.logo = Image(constant.IMG["logo"])
-
         self.socket = None
         self.ip = socket.gethostbyname(socket.gethostname())
         self.port = 12800
         self.frame_size = int(0.5 * self.window_rect.w), int(0.5 * self.window_rect.h)
-
         self.frame = RectangleShape(self.frame_size, GREEN_DARK, outline=5)
+        self.text_title = Text("Waiting for Player 1", ("calibri", 100), BLACK)
         self.ip_address = Text(f"IP address: {self.ip}", ("calibri", 80), BLACK)
         self.port_of_connection = Text(f"Port: {self.port}", ("calibri", 80), BLACK)
         self.cancel_button = Button(self, "Return to menu", command=self.stop, **params_for_all_buttons)
         self.place_objects()
-        self.after(500, self.check_incoming_connection)
+        self.after(0, self.check_incoming_connection)
 
     def place_objects(self):
         self.bg.move(center=self.window_rect.center)
@@ -87,6 +86,7 @@ class PlayerClient(Window):
         self.frame_size = int(0.5 * self.window_rect.w), int(0.5 * self.window_rect.h)
 
         self.frame = RectangleShape(self.frame_size, GREEN_DARK, outline=5)
+        self.text_title = Text("Connect to Player 1", ("calibri", 100), BLACK)
         self.ip = Entry(self, font=("calibri", 80), width=13, bg=GREEN, fg=BLACK, highlight_color=YELLOW, outline=5)
         self.text_ip = Text("IP adress", ("calibri", 80), YELLOW)
         self.port = Entry(self, font=("calibri", 80), width=13, bg=GREEN, fg=BLACK, highlight_color=YELLOW, outline=5)
@@ -99,6 +99,7 @@ class PlayerClient(Window):
         self.bg.move(center=self.window_rect.center)
         self.logo.move(centerx=self.window_rect.centerx, y=10)
         self.frame.move(center=self.window_rect.center)
+        self.text_title.move(centerx=self.frame.rect.centerx, top=self.frame.rect.top + 50)
         self.ip.move(centerx=self.window_rect.centerx, bottom=self.frame.rect.centery - 10)
         self.text_ip.move(centery=self.ip.rect.centery, right=self.ip.rect.left - 10)
         self.port.move(left=self.ip.rect.left, top=self.ip.rect.bottom + 20)

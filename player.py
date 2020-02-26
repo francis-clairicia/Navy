@@ -60,6 +60,7 @@ class PlayerServer(Window):
             connections = select.select([self.socket], [], [], 0.05)[0]
         except (socket.error, ValueError):
             return
+        print(connections)
         if len(connections) > 0:
             socket_player_2 = connections[0].accept()[0]
             gameplay = Gameplay(socket_player_2, True)

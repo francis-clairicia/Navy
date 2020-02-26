@@ -51,7 +51,7 @@ class PlayerServer(Window):
     def set_up_connection(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(("0.0.0.0", self.port))
-        self.socket.listen(1)
+        self.socket.listen(5)
 
     def check_incoming_connection(self):
         if self.socket is None:

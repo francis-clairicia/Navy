@@ -57,16 +57,18 @@ class PlayerServer(Window):
         if self.socket is None:
             self.set_up_connection()
         try:
-            connections = select.select([self.socket], [], [], 0.05)
-            print(connections)
+            connections = select.select([self.socket], [], [], 0.05)[0]
         except (socket.error, ValueError):
-            return
-        if len(connections[0]) > 0:
-            socket_player_2 = connections[0][0].accept()[0]
-            gameplay = Gameplay(socket_player_2, True)
-            gameplay.mainloop()
-            socket_player_2.close()
-            self.stop()
+            pass
+        else:
+            if len(connections) > 0:
+                socket_player_2 = connections[0].accept()[0]
+                gameplay = Gameplay(socket_player_2, True)
+                gameplay.mainloop()
+                socket_player_2.close()
+                self.stop()
+        finally:
+            self.after(500, self.check_incoming_connection)
 
 class PlayerClient(Window):
     def __init__(self):
@@ -111,7 +113,9 @@ class PlayerClient(Window):
             socket_player_1.connect((self.ip.get(), int(self.port.get())))
         except socket.error:
             return
-        gameplay = Gameplay(socket_player_1, False)
-        gameplay.mainloop()
-        socket_player_1.close()
+        else:
+            gameplay = Gameplay(socket_player_1, False)
+            gameplay.mainloop()
+        finally:
+            socket_player_1.close()
         self.stop()

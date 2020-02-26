@@ -57,7 +57,7 @@ class PlayerServer(Window):
         if self.socket is None:
             self.set_up_connection()
         try:
-            connections = select.select([self.socket], [], [], 0.05)[0]
+            connections = select.select([self.socket], [], [], 0.5)[0]
         except (socket.error, ValueError):
             return
         print(connections)

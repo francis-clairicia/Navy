@@ -1,7 +1,7 @@
 # -*- coding: Utf-8 -*
 
 import socket
-import select
+#import select
 import constant
 from my_pygame.window import Window
 from my_pygame.classes import Button, RectangleShape, Image, Text, Entry
@@ -52,21 +52,20 @@ class PlayerServer(Window):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind(("0.0.0.0", self.port))
         self.socket.listen(5)
+        self.socket.settimeout(1)
 
     def check_incoming_connection(self):
         if self.socket is None:
             self.set_up_connection()
         try:
-            connections = select.select([self.socket], [], [], 0.5)[0]
+            socket_player_2 = self.socket.accept()[0]
         except (socket.error, ValueError):
             return
-        print(connections)
-        if len(connections) > 0:
-            socket_player_2 = connections[0].accept()[0]
-            gameplay = Gameplay(socket_player_2, True)
-            gameplay.mainloop()
-            socket_player_2.close()
-            self.stop()
+        print(socket_player_2)
+        gameplay = Gameplay(socket_player_2, True)
+        gameplay.mainloop()
+        socket_player_2.close()
+        self.stop()
 
 class PlayerClient(Window):
     def __init__(self):

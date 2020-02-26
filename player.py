@@ -50,7 +50,7 @@ class PlayerServer(Window):
 
     def set_up_connection(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind((self.ip, self.port))
+        self.socket.bind(("0.0.0.0", self.port))
         self.socket.listen(1)
 
     def check_incoming_connection(self):
@@ -108,7 +108,6 @@ class PlayerClient(Window):
             socket_player_1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             socket_player_1.settimeout(0.5)
             socket_player_1.connect((self.ip.get(), int(self.port.get())))
-            print("BITE")
         except socket.error:
             return
         gameplay = Gameplay(socket_player_1, False)

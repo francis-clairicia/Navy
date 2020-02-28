@@ -1,6 +1,6 @@
 # -*- coding:Utf-8 -*
 
-#import socket
+import random
 from math import sin, cos
 import pygame
 from constant import IMG
@@ -154,7 +154,7 @@ class ShipSetup(Image):
             self.show_cases(box)
             if box.is_shown():
                 cases.append(box)
-        if any(box.in_use and box.ship != self for box in cases):
+        if any((not self.navy_setup.valid_box(box, self)) for box in cases):
             for box in cases:
                 box.set_color("red")
 
@@ -209,22 +209,30 @@ class NavySetup(Window):
             "active_bg": GREEN_LIGHT
         }
         self.navy_grid = Image(IMG["grid"], size=(800, 800))
-        arrow = Image(IMG["blue_arrow"], rotate=180, size=(70, 70))
-        self.quit_button = ImageButton(self, arrow, command=self.stop, **params_for_all_buttons)
+        self.navy_grid.move(x=20, centery=self.window_rect.centery)
+        arrow = Image(IMG["arrow_blue"], rotate=180, size=(70, 70))
+        self.quit_button = ImageButton(self, arrow, command=self.stop)
         self.quit_button.move(x=20, y=20)
         self.play_button = Button(self, "Play", font=("calibri", 100), **params_for_all_buttons)
         self.play_button.move(right=self.window_rect.right - 20, bottom=self.window_rect.bottom - 70)
+        option_size = (100, 100)
+        restart = Image(IMG["reload_blue"], size=option_size)
+        self.restart_button = ImageButton(self, restart, show_bg=True, command=self.reinit_all_ships, **params_for_all_buttons)
+        self.restart_button.move(left=self.navy_grid.right + 20, bottom=self.navy_grid.bottom)
+        random_image = Image(IMG["random"], size=option_size)
+        self.random_button = ImageButton(self, random_image, show_bg=True, command=self.random_positions, **params_for_all_buttons)
+        self.random_button.move(left=self.restart_button.right + 30, centery=self.restart_button.centery)
         self.case_size = round(self.navy_grid.w / 10)
         self.cases_rect = dict()
-        self.navy_grid.move(x=20, centery=self.window_rect.centery)
         self.init_cases()
         self.ships = dict()
+        self.saves_rect = dict()
         self.ships["carrier"] = self.carrier = ShipSetup(4, self, IMG["carrier"])
         self.ships["battleship_1"] = self.battleship_1 = ShipSetup(3, self, IMG["battleship"])
         self.ships["battleship_2"] = self.battleship_2 = ShipSetup(3, self, IMG["battleship"])
         self.ships["destroyer_1"] = self.destroyer_1 = ShipSetup(2, self, IMG["destroyer"])
         self.ships["destroyer_2"] = self.destroyer_2 = ShipSetup(2, self, IMG["destroyer"])
-        self.ships["destroyer_3"] = self.destroyer_2 = ShipSetup(2, self, IMG["destroyer"])
+        self.ships["destroyer_3"] = self.destroyer_3 = ShipSetup(2, self, IMG["destroyer"])
         self.ships["patroal_1"] = self.patroal_1 = ShipSetup(1, self, IMG["patroal_boat"])
         self.ships["patroal_2"] = self.patroal_2 = ShipSetup(1, self, IMG["patroal_boat"])
         self.ships["patroal_3"] = self.patroal_3 = ShipSetup(1, self, IMG["patroal_boat"])
@@ -245,6 +253,8 @@ class NavySetup(Window):
             prev = self.ships[f"patroal_{i}"]
             actual = self.ships[f"patroal_{i + 1}"]
             actual.set_default_pos(left=prev.right + 70, centery=prev.centery)
+        for name, ship in self.ships.items():
+            self.saves_rect[name] = ship.rect.copy()
 
     def init_cases(self):
         c = self.case_size
@@ -255,11 +265,89 @@ class NavySetup(Window):
                 box.hide()
                 self.add(box)
                 self.cases_rect[i, j] = box
+        print("Boxes:", list(box.pos for box in self.cases_rect.values()), "\n")
 
     def play(self):
         # self.gameplay.load_navy()
         # self.gameplay.mainloop()
         self.stop()
+
+    def valid_box(self, box: Box, relative_to: ShipSetup):
+        x, y = box.pos
+        offsets = [
+            (-1, -1),
+            (0, -1),
+            (1, -1),
+            (-1, 0),
+            (0, 0),
+            (1, 0),
+            (-1, 1),
+            (0, 1),
+            (1, 1)
+        ]
+        for u, v in offsets:
+            box = self.cases_rect.get((x + u, y + v))
+            if box is None:
+                continue
+            if box.in_use and box.ship != relative_to:
+                return False
+        return True
+
+    def reinit_all_ships(self):
+        for name, ship in self.ships.items():
+            if not ship.on_map:
+                continue
+            if ship.orient == "vertical":
+                ship.orient = "horizontal"
+                ship.rotate(90)
+            ship.cases_covered.clear()
+            ship.set_default_pos(topleft=self.saves_rect[name].topleft)
+        for box in self.cases_rect.values():
+            box.ship = None
+
+    def random_positions(self):
+        self.reinit_all_ships()
+        for ship in self.ships.values():
+            self.set_random_position(ship)
+
+    def set_random_position(self, ship: ShipSetup):
+        vertical = random.choice([True, False])
+        if vertical:
+            ship.rotate(-90)
+            ship.orient = "vertical"
+        else:
+            ship.orient = "horizontal"
+        first_box = random.choice(self.get_available_boxes(ship))
+        for i in range(ship.ship_size):
+            x, y = first_box.pos
+            x += i if ship.orient == "horizontal" else 0
+            y += i if ship.orient == "vertical" else 0
+            print((x, y))
+            box = self.cases_rect[x, y]
+            box.ship = ship
+            ship.cases_covered.append(box)
+        if ship.orient == "horizontal":
+            ship.set_default_pos(x=first_box.x, centery=first_box.centery)
+        else:
+            ship.set_default_pos(y=first_box.y, centerx=first_box.centerx)
+
+    def get_available_boxes(self, ship: ShipSetup):
+        available_boxes = list()
+        for box in self.cases_rect.values():
+            if not self.valid_box(box, ship):
+                continue
+            x, y = box.pos
+            valid = True
+            for i in range(1, ship.ship_size):
+                u = x + i if ship.orient == "horizontal" else x
+                v = y + i if ship.orient == "vertical" else y
+                b = self.cases_rect.get((u, v))
+                if b is None or (not self.valid_box(b, ship)):
+                    valid = False
+                    break
+            if valid:
+                available_boxes.append(box)
+        return available_boxes
 
 if __name__ == "__main__":
     NavySetup(None, True).mainloop()

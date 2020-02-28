@@ -27,7 +27,7 @@ class PlayerServer(Window):
         self.port = 12800
         self.frame_size = int(0.5 * self.window_rect.w), int(0.5 * self.window_rect.h)
         self.frame = RectangleShape(self.frame_size, GREEN_DARK, outline=5)
-        self.text_title = Text("Waiting for Player 1", ("calibri", 100), BLACK)
+        self.text_title = Text("Waiting for Player 2", ("calibri", 100), BLACK)
         self.ip_address = Text(f"IP address: {self.ip}", ("calibri", 80), BLACK)
         self.port_of_connection = Text(f"Port: {self.port}", ("calibri", 80), BLACK)
         self.cancel_button = Button(self, "Return to menu", command=self.stop, **params_for_all_buttons)

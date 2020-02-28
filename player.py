@@ -2,11 +2,11 @@
 
 import socket
 import select
-import constant
+from constant import IMG
 from my_pygame.window import Window
 from my_pygame.classes import Button, RectangleShape, Image, Text, Entry
 from my_pygame.colors import BLACK, GREEN, GREEN_DARK, GREEN_LIGHT, YELLOW
-from game import Gameplay
+from setup_navy import NavySetup
 
 class PlayerServer(Window):
     def __init__(self):
@@ -20,8 +20,8 @@ class PlayerServer(Window):
             "outline": 5,
             "outline_color": BLACK
         }
-        self.bg = Image(constant.IMG["menu_bg"], self.window_rect.size)
-        self.logo = Image(constant.IMG["logo"])
+        self.bg = Image(IMG["menu_bg"], self.window_rect.size)
+        self.logo = Image(IMG["logo"])
         self.socket = None
         self.ip = socket.gethostbyname(socket.gethostname())
         self.port = 12800
@@ -38,9 +38,10 @@ class PlayerServer(Window):
         self.bg.move(center=self.window_rect.center)
         self.logo.move(centerx=self.window_rect.centerx, y=10)
         self.frame.move(center=self.window_rect.center)
+        self.text_title.move(centerx=self.frame.centerx, top=self.frame.top + 50)
         self.ip_address.move(centerx=self.window_rect.centerx, bottom=self.frame.rect.centery - 10)
-        self.port_of_connection.move(centerx=self.ip_address.rect.centerx, top=self.ip_address.rect.bottom + 20)
-        self.cancel_button.move(centerx=self.frame.rect.centerx, bottom=self.frame.rect.bottom - 50)
+        self.port_of_connection.move(centerx=self.ip_address.centerx, top=self.ip_address.bottom + 20)
+        self.cancel_button.move(centerx=self.frame.centerx, bottom=self.frame.bottom - 50)
 
     def on_quit(self):
         if self.socket is not None:
@@ -62,8 +63,8 @@ class PlayerServer(Window):
         else:
             if len(connections) > 0:
                 socket_player_2 = connections[0].accept()[0]
-                gameplay = Gameplay(socket_player_2, True)
-                gameplay.mainloop()
+                setup = NavySetup(socket_player_2, True)
+                setup.mainloop()
                 socket_player_2.close()
                 self.stop()
         finally:
@@ -81,8 +82,8 @@ class PlayerClient(Window):
             "outline": 5,
             "outline_color": BLACK
         }
-        self.bg = Image(constant.IMG["menu_bg"], self.window_rect.size)
-        self.logo = Image(constant.IMG["logo"])
+        self.bg = Image(IMG["menu_bg"], self.window_rect.size)
+        self.logo = Image(IMG["logo"])
         self.frame_size = int(0.5 * self.window_rect.w), int(0.5 * self.window_rect.h)
 
         self.frame = RectangleShape(self.frame_size, GREEN_DARK, outline=5)
@@ -99,13 +100,13 @@ class PlayerClient(Window):
         self.bg.move(center=self.window_rect.center)
         self.logo.move(centerx=self.window_rect.centerx, y=10)
         self.frame.move(center=self.window_rect.center)
-        self.text_title.move(centerx=self.frame.rect.centerx, top=self.frame.rect.top + 50)
-        self.ip.move(centerx=self.window_rect.centerx, bottom=self.frame.rect.centery - 10)
-        self.text_ip.move(centery=self.ip.rect.centery, right=self.ip.rect.left - 10)
-        self.port.move(left=self.ip.rect.left, top=self.ip.rect.bottom + 20)
-        self.text_port.move(centery=self.port.rect.centery, right=self.port.rect.left - 10)
-        self.connect_button.move(centerx=self.frame.rect.w / 4 + self.frame.rect.x, bottom=self.frame.rect.bottom - 50)
-        self.cancel_button.move(centerx=self.frame.rect.w * 3 / 4 + self.frame.rect.x, bottom=self.frame.rect.bottom - 50)
+        self.text_title.move(centerx=self.frame.rect.centerx, top=self.frame.top + 50)
+        self.ip.move(centerx=self.window_rect.centerx, bottom=self.frame.centery - 10)
+        self.text_ip.move(centery=self.ip.centery, right=self.ip.left - 10)
+        self.port.move(left=self.ip.left, top=self.ip.bottom + 20)
+        self.text_port.move(centery=self.port.centery, right=self.port.left - 10)
+        self.connect_button.move(centerx=self.frame.w / 4 + self.frame.x, bottom=self.frame.bottom - 50)
+        self.cancel_button.move(centerx=self.frame.w * 3 / 4 + self.frame.x, bottom=self.frame.bottom - 50)
 
     def connection(self):
         try:
@@ -113,10 +114,12 @@ class PlayerClient(Window):
             socket_player_1.settimeout(0.5)
             socket_player_1.connect((self.ip.get(), int(self.port.get())))
         except socket.error:
-            return
+            play = False
         else:
-            gameplay = Gameplay(socket_player_1, False)
-            gameplay.mainloop()
+            play = True
+            setup = NavySetup(socket_player_1, False)
+            setup.mainloop()
         finally:
             socket_player_1.close()
-        self.stop()
+        if play:
+            self.stop()

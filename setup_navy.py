@@ -5,12 +5,16 @@ from math import sin, cos
 import pygame
 from constant import IMG
 from my_pygame.window import Window
-from my_pygame.classes import Image, ImageButton, Button
-from my_pygame.colors import GREEN, GREEN_DARK, GREEN_LIGHT
+from my_pygame.classes import Image, ImageButton, Button, Text
+from my_pygame.colors import GREEN, GREEN_DARK, GREEN_LIGHT, WHITE
 from vector import Vector
-from game import Gameplay
+try:
+    from game import Gameplay
+except ImportError:
+    pass
+from loading import Loading
 
-class Box(Image):
+class BoxSetup(Image):
     def __init__(self, valid: str, invalid: str, pos: tuple, *args, **kwargs):
         Image.__init__(self, valid, *args, **kwargs)
         self.colors = {
@@ -158,7 +162,7 @@ class ShipSetup(Image):
             for box in cases:
                 box.set_color("red")
 
-    def show_cases(self, box: Box):
+    def show_cases(self, box: BoxSetup):
         box.hide()
         grid = self.navy_setup.navy_grid
         if not grid.rect.collidepoint(self.topleft) or not grid.rect.collidepoint(self.topright):
@@ -202,7 +206,8 @@ class NavySetup(Window):
 
     def __init__(self, socket_player, turn):
         Window.__init__(self, bg_color=(0, 200, 255))
-        self.gameplay = Gameplay(socket_player, turn)
+        self.socket_player = socket_player
+        self.turn = turn
         params_for_all_buttons = {
             "bg": GREEN,
             "over_bg": GREEN_DARK,
@@ -213,7 +218,7 @@ class NavySetup(Window):
         arrow = Image(IMG["arrow_blue"], rotate=180, size=(70, 70))
         self.quit_button = ImageButton(self, arrow, command=self.stop)
         self.quit_button.move(x=20, y=20)
-        self.play_button = Button(self, "Play", font=("calibri", 100), **params_for_all_buttons)
+        self.play_button = Button(self, "Play", font=("calibri", 100), command=self.play, **params_for_all_buttons)
         self.play_button.move(right=self.window_rect.right - 20, bottom=self.window_rect.bottom - 70)
         option_size = (100, 100)
         restart = Image(IMG["reload_blue"], size=option_size)
@@ -222,6 +227,13 @@ class NavySetup(Window):
         random_image = Image(IMG["random"], size=option_size)
         self.random_button = ImageButton(self, random_image, show_bg=True, command=self.random_positions, **params_for_all_buttons)
         self.random_button.move(left=self.restart_button.right + 30, centery=self.restart_button.centery)
+        self.timer_format = "Time left: {0}"
+        self.my_clock = 30
+        self.timer = Text(self.timer_format.format(self.my_clock), ("calibri", 70), WHITE, right=self.window_rect.right - 20, top=20)
+        if socket_player is not None:
+            self.after(1000, self.update_timer)
+        else:
+            self.timer.hide()
         self.case_size = round(self.navy_grid.w / 10)
         self.cases_rect = dict()
         self.init_cases()
@@ -261,18 +273,34 @@ class NavySetup(Window):
         n = self.navy_grid
         for j in range(10):
             for i in range(10):
-                box = Box(IMG["green_box"], IMG["red_box"], (i, j), size=(c, c), x=n.x + (c * i), y=n.y + (c * j))
+                box = BoxSetup(IMG["green_box"], IMG["red_box"], (i, j), size=(c, c), x=n.x + (c * i), y=n.y + (c * j))
                 box.hide()
                 self.add(box)
                 self.cases_rect[i, j] = box
-        print("Boxes:", list(box.pos for box in self.cases_rect.values()), "\n")
+
+    def update_timer(self):
+        self.my_clock -= 1
+        if self.my_clock == 0:
+            for ship in self.ships.values():
+                if not ship.on_map:
+                    self.set_random_position(ship)
+            self.play()
+        else:
+            self.timer.set_string(self.timer_format.format(self.my_clock))
+            self.after(1000, self.update_timer)
 
     def play(self):
-        # self.gameplay.load_navy()
-        # self.gameplay.mainloop()
+        if any(not ship.on_map for ship in self.ships.values()):
+            return
+        loading_text = "Loading..." if self.socket_player is None else "Waiting for player 2"
+        loading_page = Loading(text=loading_text, side_opening="right", side_ending="left")
+        loading_page.show(self)
+        gameplay = Gameplay(self, self.socket_player, self.turn)
+        loading_page.hide(gameplay)
+        gameplay.mainloop()
         self.stop()
 
-    def valid_box(self, box: Box, relative_to: ShipSetup):
+    def valid_box(self, box: BoxSetup, relative_to: ShipSetup):
         x, y = box.pos
         offsets = [
             (-1, -1),
@@ -322,7 +350,6 @@ class NavySetup(Window):
             x, y = first_box.pos
             x += i if ship.orient == "horizontal" else 0
             y += i if ship.orient == "vertical" else 0
-            print((x, y))
             box = self.cases_rect[x, y]
             box.ship = ship
             ship.cases_covered.append(box)

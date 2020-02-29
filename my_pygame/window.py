@@ -25,7 +25,7 @@ class Window:
         self.mouse_handler_list = list()
         self.fps = fps
         self.bg_color = bg_color
-        self.time_after = 0
+        self.time_after = -1
         self.time_start = 0
         self.callback_after = None
         self.bind_key(pygame.K_ESCAPE, lambda key: self.stop())
@@ -33,19 +33,34 @@ class Window:
 
     def __setattr__(self, name, obj):
         if hasattr(obj, "draw"):
+            if hasattr(self, name):
+                delattr(self, name)
             self.add(obj)
         return object.__setattr__(self, name, obj)
 
+    def __delattr__(self, name):
+        obj = getattr(self, name)
+        self.remove(obj)
+        return object.__delattr__(self, name)
+
     def add(self, obj):
         self.objects.append(obj)
+
+    def remove(self, obj):
+        try:
+            self.objects.remove(obj)
+        except ValueError:
+            return
 
     @property
     def end_list(self):
         return len(self.objects)
 
-    def set_object_priority(self, obj, new_pos):
+    def set_object_priority(self, obj, new_pos, relative_to=None):
         former_pos = self.objects.index(obj)
         del self.objects[former_pos]
+        if relative_to is not None:
+            new_pos += self.objects.index(relative_to)
         self.objects.insert(new_pos, obj)
 
     def set_icon(self, icon_filepath):
@@ -55,11 +70,14 @@ class Window:
     def set_title(self, title: str):
         pygame.display.set_caption(title)
 
-    def mainloop(self):
+    def mainloop(self, fill_bg=True):
         self.loop = True
+        if self.time_after >= 0:
+            self.time_start = time.time()
         while self.loop:
             self.main_clock.tick(self.fps)
-            self.draw_screen()
+            self.draw_screen(fill_bg)
+            self.refresh()
             self.event_handler()
             self.mouse_handler()
 
@@ -73,25 +91,29 @@ class Window:
     def on_quit(self):
         pass
 
-    def draw_screen(self):
-        self.window.fill(self.bg_color)
+    def draw_screen(self, fill=True):
+        if fill:
+            self.window.fill(self.bg_color)
         for obj in self.objects:
             obj.draw(self.window)
+
+    @staticmethod
+    def refresh():
         pygame.display.flip()
 
     def event_handler(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                self.stop()
+                self.stop(force=True)
             if event.type == pygame.KEYDOWN:
                 self.key_handler(event.key)
             event_list = self.event_handler_dict.get(event.type, list())
             for callback in event_list:
                 callback(event)
-        if not self.time_after:
+        if self.time_after < 0:
             return
         if time.time() - self.time_start >= (self.time_after / 1000):
-            self.time_after = 0
+            self.time_after = -1
             self.callback_after()
 
     def mouse_handler(self):

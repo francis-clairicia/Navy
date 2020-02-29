@@ -6,10 +6,13 @@ from player import PlayerServer, PlayerClient
 from my_pygame.window import Window
 from my_pygame.colors import BLACK, GREEN, GREEN_DARK, GREEN_LIGHT, YELLOW
 from my_pygame.classes import Image, Button
+from loading import Loading
 
 class NavyGame(Window):
     def __init__(self):
         Window.__init__(self) # flags=pygame.FULLSCREEN
+        loading_page = Loading(opening=False, side_ending="right")
+        loading_page.show(self)
         self.set_icon(IMG["icon"])
         self.set_title("Navy")
         params_for_all_buttons = {
@@ -29,6 +32,7 @@ class NavyGame(Window):
         self.player_2_button = Button(self, "Play as P2", command=self.player_2.mainloop, **params_for_all_buttons)
         self.quit_button = Button(self, "Quit", command=self.stop, **params_for_all_buttons)
         self.place_objects()
+        loading_page.hide(self)
 
     def place_objects(self):
         self.bg.move(center=self.window_rect.center)

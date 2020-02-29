@@ -7,6 +7,7 @@ from my_pygame.window import Window
 from my_pygame.classes import Button, RectangleShape, Image, Text, Entry
 from my_pygame.colors import BLACK, GREEN, GREEN_DARK, GREEN_LIGHT, YELLOW
 from setup_navy import NavySetup
+from loading import Loading
 
 class PlayerServer(Window):
     def __init__(self):
@@ -30,7 +31,9 @@ class PlayerServer(Window):
         self.text_title = Text("Waiting for Player 2", ("calibri", 100), BLACK)
         self.ip_address = Text(f"IP address: {self.ip}", ("calibri", 80), BLACK)
         self.port_of_connection = Text(f"Port: {self.port}", ("calibri", 80), BLACK)
+        self.ai_button = Button(self, "Against AI", command=self.play_against_ai, **params_for_all_buttons)
         self.cancel_button = Button(self, "Return to menu", command=self.stop, **params_for_all_buttons)
+        self.with_ai = False
         self.place_objects()
         self.after(0, self.check_incoming_connection)
 
@@ -41,16 +44,21 @@ class PlayerServer(Window):
         self.text_title.move(centerx=self.frame.centerx, top=self.frame.top + 50)
         self.ip_address.move(centerx=self.window_rect.centerx, bottom=self.frame.rect.centery - 10)
         self.port_of_connection.move(centerx=self.ip_address.centerx, top=self.ip_address.bottom + 20)
-        self.cancel_button.move(centerx=self.frame.centerx, bottom=self.frame.bottom - 50)
+        self.ai_button.move(centerx=self.frame.centerx - (self.frame.w / 4), bottom=self.frame.bottom - 50)
+        self.cancel_button.move(centerx=self.frame.centerx + (self.frame.w / 4), bottom=self.frame.bottom - 50)
 
     def on_quit(self):
+        self.close_socket()
+        self.with_ai = False
+
+    def close_socket(self):
         if self.socket is not None:
             self.socket.close()
         self.socket = None
 
     def set_up_connection(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind(("0.0.0.0", self.port))
+        self.socket.bind(("", self.port))
         self.socket.listen(1)
 
     def check_incoming_connection(self):
@@ -58,17 +66,28 @@ class PlayerServer(Window):
             self.set_up_connection()
         try:
             connections = select.select([self.socket], [], [], 0.05)[0]
-        except (socket.error, ValueError):
+        except (socket.error, ValueError, TypeError):
             pass
         else:
-            if len(connections) > 0:
-                socket_player_2 = connections[0].accept()[0]
+            if len(connections) > 0 or self.with_ai:
+                if len(connections) > 0:
+                    socket_player_2 = connections[0].accept()[0]
+                else:
+                    self.close_socket()
+                    socket_player_2 = None
+                loading_page = Loading(side_opening="top", side_ending="bottom")
+                loading_page.show(self)
                 setup = NavySetup(socket_player_2, True)
+                loading_page.hide(setup)
                 setup.mainloop()
-                socket_player_2.close()
+                if socket_player_2 is not None:
+                    socket_player_2.close()
                 self.stop()
         finally:
-            self.after(500, self.check_incoming_connection)
+            self.after(10, self.check_incoming_connection)
+
+    def play_against_ai(self):
+        self.with_ai = True
 
 class PlayerClient(Window):
     def __init__(self):
@@ -111,7 +130,7 @@ class PlayerClient(Window):
     def connection(self):
         try:
             socket_player_1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            socket_player_1.settimeout(0.5)
+            socket_player_1.settimeout(3)
             socket_player_1.connect((self.ip.get(), int(self.port.get())))
         except socket.error:
             play = False

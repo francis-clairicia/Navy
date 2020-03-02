@@ -136,7 +136,7 @@ class Navy:
 
     def add_case(self, img: str, box: Box):
         case = Image(IMG[img], size=box.size)
-        case.move(center=box.rect.center)
+        case.move(center=box.center)
         self.cases.append(case)
         box.hit = True
         box.hide()
@@ -182,38 +182,26 @@ class Navy:
 class AI:
     def __init__(self):
         self.cases_hitted = list()
-        self.map_coords = [(i, j) for i in range(10) for j in range(10)]
+        self.possibilities = [(i, j) for i in range(10) for j in range(10)]
 
     def play(self, navy_map: list):
-        self.clear_hitted_cases(navy_map)
-        boxes = list()
-        for case in self.map_coords:
-            x, y = case
-            if navy_map[y][x] == 2 and (x, y) not in self.cases_hitted:
-                self.cases_hitted.append(case)
-            elif navy_map[y][x] == 0:
-                boxes.append(case)
+        for x, y in self.cases_hitted.copy():
+            if navy_map[y][x] != 2:
+                self.cases_hitted.remove((x, y))
+        for x, y in self.possibilities.copy():
+            if navy_map[y][x] != 0:
+                if navy_map[y][x] == 2:
+                    self.cases_hitted.append((x, y))
+                self.possibilities.remove((x, y))
         if len(self.cases_hitted) > 0:
             return self.hit_the_ship(navy_map)
-        return random.choice(boxes)
-
-    def clear_hitted_cases(self, navy_map: list):
-        new_list = list()
-        for case in self.cases_hitted:
-            x, y = case
-            if navy_map[y][x] == 2:
-                new_list.append(case)
-        del self.cases_hitted
-        self.cases_hitted = new_list
+        return random.choice(self.possibilities)
 
     def hit_the_ship(self, navy_map: list):
         if len(self.cases_hitted) == 1:
             return self.find_ship(navy_map, *self.cases_hitted[0])
         self.cases_hitted.sort()
-        if self.cases_hitted[0][0] == self.cases_hitted[-1][0]:
-            index = 1
-        else:
-            index = 0
+        index = 1 if self.cases_hitted[0][0] == self.cases_hitted[-1][0] else 0
         first, second = list(self.cases_hitted[0]), list(self.cases_hitted[-1])
         first[index] -= 1
         second[index] += 1
@@ -233,8 +221,7 @@ class AI:
             (0, 1)
         ]
         potential_boxes = list()
-        for case in [(x + u, y + v) for u, v in offsets]:
-            i, j = case
+        for i, j in [(x + u, y + v) for u, v in offsets]:
             if i in range(10) and j in range(10) and navy_map[j][i] == 0:
                 potential_boxes.append((i, j))
         return random.choice(potential_boxes)
@@ -256,7 +243,7 @@ class Finish(Window):
         }
         winner = {True: "I", False: "Enemy"}[player_who_won] + " " + "won"
         self.frame_size = int(0.5 * self.window_rect.w), int(0.5 * self.window_rect.h)
-        self.frame = RectangleShape(self.frame_size, GREEN, outline=5)
+        self.frame = RectangleShape(self.frame_size, GREEN_DARK, outline=5)
         self.winner = Text(winner, ("calibri", 100), BLACK)
         self.ask = Text(f"Restart the party ?", ("calibri", 80), BLACK)
         self.restart_button = Button(self, "Restart", command=self.restart_the_game, **params_for_all_buttons)

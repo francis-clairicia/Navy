@@ -86,7 +86,6 @@ class PlayerServer(Window):
                     loading_page.hide(setup)
                     setup.mainloop()
                     if setup.start_game:
-                        first_page = setup
                         loading_text = "Loading..." if socket_player_2 is None else "Waiting for player 2"
                         loading_page = Loading(text=loading_text, side_opening="right", side_ending="left")
                         loading_page.show(setup)
@@ -101,6 +100,7 @@ class PlayerServer(Window):
                 if socket_player_2 is not None:
                     socket_player_2.close()
                 self.stop()
+                return
         finally:
             self.after(10, self.check_incoming_connection)
 
@@ -125,9 +125,9 @@ class PlayerClient(Window):
 
         self.frame = RectangleShape(self.frame_size, GREEN_DARK, outline=5)
         self.text_title = Text("Connect to Player 1", ("calibri", 100), BLACK)
-        self.ip = Entry(self, font=("calibri", 80), width=13, bg=GREEN, fg=BLACK, highlight_color=YELLOW, outline=5)
+        self.ip = Entry(self, font=("calibri", 80), width=14, bg=GREEN, fg=BLACK, highlight_color=YELLOW, outline=5)
         self.text_ip = Text("IP adress", ("calibri", 80), YELLOW)
-        self.port = Entry(self, font=("calibri", 80), width=13, bg=GREEN, fg=BLACK, highlight_color=YELLOW, outline=5)
+        self.port = Entry(self, font=("calibri", 80), width=14, bg=GREEN, fg=BLACK, highlight_color=YELLOW, outline=5)
         self.text_port = Text("Port", ("calibri", 80), YELLOW)
         self.connect_button = Button(self, "Connection", command=self.connection, **params_for_all_buttons)
         self.cancel_button = Button(self, "Return to menu", command=self.stop, **params_for_all_buttons)
@@ -150,10 +150,11 @@ class PlayerClient(Window):
             socket_player_1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             socket_player_1.settimeout(3)
             socket_player_1.connect((self.ip.get(), int(self.port.get())))
-        except socket.error:
+        except (socket.error, OverflowError):
             play = False
         else:
             play = True
+            socket_player_1.settimeout(None)
             setup = NavySetup(True)
             setup.mainloop()
         finally:

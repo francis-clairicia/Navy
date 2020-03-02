@@ -46,6 +46,18 @@ class Drawable(Sprite):
         self.rect = self.image.get_rect(**kwargs)
         return self.rect
 
+    def set_size(self, *args):
+        size = args if len(args) == 2 else args[0]
+        self.image = pygame.transform.smoothscale(self.image, size)
+
+    def set_width(self, width):
+        height = round(self.rect.h * width / self.rect.w)
+        self.set_size(width, height)
+
+    def set_height(self, height):
+        width = round(self.rect.w * height / self.rect.h)
+        self.set_size(width, height)
+
     left = property(lambda self: self.rect.left)
     right = property(lambda self: self.rect.right)
     top = property(lambda self: self.rect.top)
@@ -79,18 +91,6 @@ class Image(Drawable):
         if rotate != 0:
             self.rotate(rotate)
         self.move(**kwargs)
-
-    def set_size(self, *args):
-        size = args if len(args) == 2 else args[0]
-        self.image = pygame.transform.smoothscale(self.image, size)
-
-    def set_width(self, width):
-        height = round(self.rect.h * width / self.rect.w)
-        self.set_size(width, height)
-
-    def set_height(self, height):
-        width = round(self.rect.w * height / self.rect.h)
-        self.set_size(width, height)
 
     def rotate(self, angle):
         self.image = pygame.transform.rotate(self.image, angle)
@@ -143,12 +143,6 @@ class RectangleShape(Drawable):
         if self.outline > 0:
             pygame.draw.rect(surface, self.outline_color, self.rect, self.outline)
         return self.rect
-
-    def set_size(self, *args):
-        save_center = self.rect.center
-        self.image = pygame.Surface(args if len(args) == 2 else args[0])
-        self.image.fill(self.color)
-        self.move(center=save_center)
 
     @property
     def color(self):

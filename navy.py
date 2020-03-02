@@ -31,6 +31,7 @@ class NavyGame(Window):
         self.player_1_button = Button(self, "Play as P1", command=self.player_1.mainloop, **params_for_all_buttons)
         self.player_2_button = Button(self, "Play as P2", command=self.player_2.mainloop, **params_for_all_buttons)
         self.quit_button = Button(self, "Quit", command=self.stop, **params_for_all_buttons)
+        self.quit_button.set_size(self.player_1_button.size)
         self.place_objects()
         loading_page.hide(self)
 
@@ -40,7 +41,6 @@ class NavyGame(Window):
         self.player_2_button.move(center=self.window_rect.center)
         self.player_1_button.move(centerx=self.window_rect.centerx, bottom=self.player_2_button.top - 50)
         self.quit_button.move(centerx=self.window_rect.centerx, top=self.player_2_button.bottom + 50)
-        self.quit_button.set_size(self.player_1_button.size)
 
 def main():
     navy_game = NavyGame()

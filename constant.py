@@ -24,7 +24,9 @@ IMG = {
     "patroal_boat": os.path.join(IMG_FOLDER, "patroal_boat.png"),
     "carrier": os.path.join(IMG_FOLDER, "carrier.png"),
     "red_triangle": os.path.join(IMG_FOLDER, "red_triangle.png"),
-    "green_triangle": os.path.join(IMG_FOLDER, "green_triangle.png")
+    "green_triangle": os.path.join(IMG_FOLDER, "green_triangle.png"),
+    "hatch": os.path.join(IMG_FOLDER, "hatch.png"),
+    "cross": os.path.join(IMG_FOLDER, "cross.png")
 }
 for img in IMG.values():
     if not os.path.isfile(img):

@@ -57,9 +57,6 @@ class Loading(Window):
             self.mainloop(fill_bg=False)
 
     def _show_animation(self, x_offset: int, y_offset: int):
-        self.rectangle.rect.move_ip(x_offset, y_offset)
-        self.text.move(center=self.rectangle.center)
-        self.master.draw_screen()
         side = self.side_opening
         if (side == "left" and self.rectangle.left > self.window_rect.left) \
         or (side == "right" and self.rectangle.right < self.window_rect.right) \
@@ -69,12 +66,15 @@ class Loading(Window):
             self.stop()
         else:
             self.after(10, lambda x=x_offset, y=y_offset: self._show_animation(x, y))
-
-    def _hide_animation(self, x_offset: int, y_offset: int):
         self.rectangle.rect.move_ip(x_offset, y_offset)
         self.text.move(center=self.rectangle.center)
         self.master.draw_screen()
+
+    def _hide_animation(self, x_offset: int, y_offset: int):
         if not self.window_rect.colliderect(self.rectangle.rect):
             self.stop()
         else:
             self.after(10, lambda x=x_offset, y=y_offset: self._hide_animation(x, y))
+        self.rectangle.rect.move_ip(x_offset, y_offset)
+        self.text.move(center=self.rectangle.center)
+        self.master.draw_screen()

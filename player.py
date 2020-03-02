@@ -8,6 +8,7 @@ from my_pygame.classes import Button, RectangleShape, Image, Text, Entry
 from my_pygame.colors import BLACK, GREEN, GREEN_DARK, GREEN_LIGHT, YELLOW
 from setup_navy import NavySetup
 from loading import Loading
+from game import Gameplay
 
 class PlayerServer(Window):
     def __init__(self):
@@ -72,14 +73,31 @@ class PlayerServer(Window):
             if len(connections) > 0 or self.with_ai:
                 if len(connections) > 0:
                     socket_player_2 = connections[0].accept()[0]
+                    timer = True
                 else:
                     self.close_socket()
                     socket_player_2 = None
-                loading_page = Loading(side_opening="top", side_ending="bottom")
-                loading_page.show(self)
-                setup = NavySetup(socket_player_2, True)
-                loading_page.hide(setup)
-                setup.mainloop()
+                    timer = False
+                first_page = self
+                while True:
+                    loading_page = Loading(side_opening="top", side_ending="bottom")
+                    loading_page.show(first_page)
+                    setup = NavySetup(timer)
+                    loading_page.hide(setup)
+                    setup.mainloop()
+                    if setup.start_game:
+                        first_page = setup
+                        loading_text = "Loading..." if socket_player_2 is None else "Waiting for player 2"
+                        loading_page = Loading(text=loading_text, side_opening="right", side_ending="left")
+                        loading_page.show(setup)
+                        gameplay = Gameplay(setup, socket_player_2, True)
+                        loading_page.hide(gameplay)
+                        gameplay.mainloop()
+                        if gameplay.finish is None or not gameplay.finish.restart:
+                            break
+                        first_page = gameplay.finish
+                    else:
+                        break
                 if socket_player_2 is not None:
                     socket_player_2.close()
                 self.stop()
@@ -136,7 +154,7 @@ class PlayerClient(Window):
             play = False
         else:
             play = True
-            setup = NavySetup(socket_player_1, False)
+            setup = NavySetup(True)
             setup.mainloop()
         finally:
             socket_player_1.close()

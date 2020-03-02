@@ -8,11 +8,6 @@ from my_pygame.window import Window
 from my_pygame.classes import Image, ImageButton, Button, Text
 from my_pygame.colors import GREEN, GREEN_DARK, GREEN_LIGHT, WHITE
 from vector import Vector
-try:
-    from game import Gameplay
-except ImportError:
-    pass
-from loading import Loading
 
 class BoxSetup(Image):
     def __init__(self, valid: str, invalid: str, pos: tuple, *args, **kwargs):
@@ -204,10 +199,9 @@ class ShipSetup(Image):
 
 class NavySetup(Window):
 
-    def __init__(self, socket_player, turn):
+    def __init__(self, timer: bool):
         Window.__init__(self, bg_color=(0, 200, 255))
-        self.socket_player = socket_player
-        self.turn = turn
+        self.start_game = False
         params_for_all_buttons = {
             "bg": GREEN,
             "over_bg": GREEN_DARK,
@@ -230,7 +224,7 @@ class NavySetup(Window):
         self.timer_format = "Time left: {0}"
         self.my_clock = 30
         self.timer = Text(self.timer_format.format(self.my_clock), ("calibri", 70), WHITE, right=self.window_rect.right - 20, top=20)
-        if socket_player is not None:
+        if timer:
             self.after(1000, self.update_timer)
         else:
             self.timer.hide()
@@ -292,12 +286,7 @@ class NavySetup(Window):
     def play(self):
         if any(not ship.on_map for ship in self.ships.values()):
             return
-        loading_text = "Loading..." if self.socket_player is None else "Waiting for player 2"
-        loading_page = Loading(text=loading_text, side_opening="right", side_ending="left")
-        loading_page.show(self)
-        gameplay = Gameplay(self, self.socket_player, self.turn)
-        loading_page.hide(gameplay)
-        gameplay.mainloop()
+        self.start_game = True
         self.stop()
 
     def valid_box(self, box: BoxSetup, relative_to: ShipSetup):
@@ -377,4 +366,4 @@ class NavySetup(Window):
         return available_boxes
 
 if __name__ == "__main__":
-    NavySetup(None, True).mainloop()
+    NavySetup(False).mainloop()

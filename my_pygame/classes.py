@@ -71,13 +71,14 @@ class Drawable(Sprite):
 
 class Image(Drawable):
     def __init__(self, filepath: str, size=None, rotate=0, **kwargs):
-        Drawable.__init__(self, pygame.image.load(filepath).convert_alpha(), **kwargs)
+        Drawable.__init__(self, pygame.image.load(filepath).convert_alpha())
         if size is not None:
             self.set_size(size)
         while not 0 <= rotate < 360:
             rotate += 360 if rotate < 0 else -360
         if rotate != 0:
             self.rotate(rotate)
+        self.move(**kwargs)
 
     def set_size(self, *args):
         size = args if len(args) == 2 else args[0]

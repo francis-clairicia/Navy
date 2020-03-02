@@ -79,7 +79,6 @@ class Window:
             self.draw_screen(fill_bg)
             self.refresh()
             self.event_handler()
-            self.mouse_handler()
 
     def stop(self, force=False):
         self.on_quit()
@@ -102,6 +101,7 @@ class Window:
         pygame.display.flip()
 
     def event_handler(self):
+        self.mouse_handler()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.stop(force=True)

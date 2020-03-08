@@ -35,6 +35,7 @@ class ShipSetup(Image):
 
     def __init__(self, ship_size, navy_setup, image_filepath, *args, **kwargs):
         Image.__init__(self, image_filepath, *args, **kwargs)
+        self.filepath = image_filepath
         self.navy_setup = navy_setup
         self.ship_size = ship_size
         self.case_size = navy_setup.case_size
@@ -222,7 +223,7 @@ class NavySetup(Window):
         self.random_button = ImageButton(self, random_image, show_bg=True, command=self.random_positions, **params_for_all_buttons)
         self.random_button.move(left=self.restart_button.right + 30, centery=self.restart_button.centery)
         self.timer_format = "Time left: {0}"
-        self.my_clock = 30
+        self.my_clock = 60
         self.timer = Text(self.timer_format.format(self.my_clock), ("calibri", 70), WHITE, right=self.window_rect.right - 20, top=20)
         if timer:
             self.after(1000, self.update_timer)

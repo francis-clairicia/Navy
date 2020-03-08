@@ -136,7 +136,8 @@ class RectangleShape(Drawable):
         self.outline_color = outline_color
 
     def draw(self, surface):
-        return self.draw_shape(surface)
+        if self.draw_sprite:
+            self.draw_shape(surface)
 
     def draw_shape(self, surface):
         surface.blit(self.image, self.rect)
@@ -179,9 +180,10 @@ class Button(RectangleShape):
         master.bind_mouse(self.mouse_motion)
 
     def draw(self, surface):
-        self.draw_shape(surface)
-        self.text.move(center=self.center)
-        self.text.draw(surface)
+        if self.draw_sprite:
+            self.draw_shape(surface)
+            self.text.move(center=self.center)
+            self.text.draw(surface)
 
     def mouse_click_up(self, event):
         if not self.active:
@@ -224,11 +226,12 @@ class ImageButton(Button):
         self._show = bool(status)
 
     def draw(self, surface):
-        if self._show:
-            self.draw_shape(surface)
-        self.image_button.move(center=self.center)
-        self.image_button.rect.move_ip(*self.offset)
-        self.image_button.draw(surface)
+        if self.draw_sprite:
+            if self._show:
+                self.draw_shape(surface)
+            self.image_button.move(center=self.center)
+            self.image_button.rect.move_ip(*self.offset)
+            self.image_button.draw(surface)
 
     def on_click_up(self):
         if not self._show:
@@ -253,13 +256,14 @@ class Entry(RectangleShape):
         master.bind_event(pygame.KEYDOWN, self.key_press)
 
     def draw(self, surface):
-        self.draw_shape(surface)
-        self.text.move(left=self.rect.left + 10, centery=self.rect.centery)
-        self.text.draw(surface)
-        if self.focus:
-            cursor_start = (self.text.rect.right + 2, self.text.rect.top)
-            cursor_end = (self.text.rect.right + 2, self.text.rect.bottom)
-            pygame.draw.line(surface, self.text.color, cursor_start, cursor_end, 2)
+        if self.draw_sprite:
+            self.draw_shape(surface)
+            self.text.move(left=self.rect.left + 10, centery=self.rect.centery)
+            self.text.draw(surface)
+            if self.focus:
+                cursor_start = (self.text.rect.right + 2, self.text.rect.top)
+                cursor_end = (self.text.rect.right + 2, self.text.rect.bottom)
+                pygame.draw.line(surface, self.text.color, cursor_start, cursor_end, 2)
 
     def get(self):
         return self.text.get_string()

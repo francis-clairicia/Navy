@@ -86,21 +86,34 @@ class PlayerServer(Window):
                     loading_page.hide(setup)
                     setup.mainloop()
                     if setup.start_game:
-                        loading_text = "Loading..." if socket_player_2 is None else "Waiting for player 2"
-                        loading_page = Loading(text=loading_text, side_opening="right", side_ending="left")
+                        loading_page = Loading(text="Waiting player 2", side_opening="right", side_ending="left")
                         loading_page.show(setup)
+                        if socket_player_2 is not None:
+                            socket_player_2.send(b"play")
+                            msg = socket_player_2.recv(1024)
+                            if msg == b"quit":
+                                break
                         gameplay = Gameplay(setup, socket_player_2, True)
                         loading_page.hide(gameplay)
                         gameplay.mainloop()
                         if gameplay.finish is None or not gameplay.finish.restart:
+                            if socket_player_2 is not None:
+                                socket_player_2.send(b"quit")
+                                socket_player_2.recv(1024)
                             break
+                        if socket_player_2 is not None:
+                            socket_player_2.send(b"restart")
+                            if socket_player_2.recv(1024) == b"quit":
+                                break
                         first_page = gameplay.finish
                     else:
+                        if socket_player_2 is not None:
+                            socket_player_2.send(b"quit")
+                            socket_player_2.recv(1024)
                         break
                 if socket_player_2 is not None:
                     socket_player_2.close()
                 self.stop()
-                return
         finally:
             self.after(10, self.check_incoming_connection)
 
@@ -155,8 +168,34 @@ class PlayerClient(Window):
         else:
             play = True
             socket_player_1.settimeout(None)
-            setup = NavySetup(True)
-            setup.mainloop()
+            first_page = self
+            while True:
+                loading_page = Loading(side_opening="top", side_ending="bottom")
+                loading_page.show(first_page)
+                setup = NavySetup(True)
+                loading_page.hide(setup)
+                setup.mainloop()
+                if setup.start_game:
+                    loading_page = Loading(text="Waiting player 1", side_opening="right", side_ending="left")
+                    loading_page.show(setup)
+                    msg = socket_player_1.recv(1024)
+                    socket_player_1.send(b"play")
+                    if msg == b"quit":
+                        break
+                    gameplay = Gameplay(setup, socket_player_1, False)
+                    loading_page.hide(gameplay)
+                    gameplay.mainloop()
+                    if gameplay.finish is None or not gameplay.finish.restart:
+                        socket_player_1.send(b"quit")
+                        socket_player_1.recv(1024)
+                        break
+                    socket_player_1.send(b"restart")
+                    if socket_player_1.recv(1024) == b"quit":
+                        break
+                    first_page = gameplay.finish
+                else:
+                    socket_player_1.send(b"quit")
+                    break
         finally:
             socket_player_1.close()
         if play:

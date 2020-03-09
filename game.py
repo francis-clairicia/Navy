@@ -162,7 +162,7 @@ class Navy:
         return (-1, -1)
 
     def add_ship(self, filepath, size, orient, first_box_pos):
-        ship_img = Image(filepath)
+        ship_img = Image(IMG[filepath])
         ship_img.set_height(self.box_size * size)
         if orient == "horizontal":
             ship_img.rotate(90)
@@ -335,8 +335,8 @@ class Player:
                 else:
                     try:
                         self.position_played = pickle.loads(msg)
-                    except EOFError:
-                        return True
+                    except (pickle.UnpicklingError, EOFError):
+                        game.show_finish_screen(forfeit=True)
         return False
 
     def reset_position(self):

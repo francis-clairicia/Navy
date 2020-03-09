@@ -33,9 +33,9 @@ class BoxSetup(Image):
 
 class ShipSetup(Image):
 
-    def __init__(self, ship_size, navy_setup, image_filepath, *args, **kwargs):
-        Image.__init__(self, image_filepath, *args, **kwargs)
-        self.filepath = image_filepath
+    def __init__(self, ship_size, navy_setup, image_id, *args, **kwargs):
+        Image.__init__(self, IMG[image_id], *args, **kwargs)
+        self.filepath = image_id
         self.navy_setup = navy_setup
         self.ship_size = ship_size
         self.case_size = navy_setup.case_size
@@ -234,16 +234,16 @@ class NavySetup(Window):
         self.init_cases()
         self.ships = dict()
         self.saves_rect = dict()
-        self.ships["carrier"] = self.carrier = ShipSetup(4, self, IMG["carrier"])
-        self.ships["battleship_1"] = self.battleship_1 = ShipSetup(3, self, IMG["battleship"])
-        self.ships["battleship_2"] = self.battleship_2 = ShipSetup(3, self, IMG["battleship"])
-        self.ships["destroyer_1"] = self.destroyer_1 = ShipSetup(2, self, IMG["destroyer"])
-        self.ships["destroyer_2"] = self.destroyer_2 = ShipSetup(2, self, IMG["destroyer"])
-        self.ships["destroyer_3"] = self.destroyer_3 = ShipSetup(2, self, IMG["destroyer"])
-        self.ships["patroal_1"] = self.patroal_1 = ShipSetup(1, self, IMG["patroal_boat"])
-        self.ships["patroal_2"] = self.patroal_2 = ShipSetup(1, self, IMG["patroal_boat"])
-        self.ships["patroal_3"] = self.patroal_3 = ShipSetup(1, self, IMG["patroal_boat"])
-        self.ships["patroal_4"] = self.patroal_4 = ShipSetup(1, self, IMG["patroal_boat"])
+        self.ships["carrier"] = self.carrier = ShipSetup(4, self, "carrier")
+        self.ships["battleship_1"] = self.battleship_1 = ShipSetup(3, self, "battleship")
+        self.ships["battleship_2"] = self.battleship_2 = ShipSetup(3, self, "battleship")
+        self.ships["destroyer_1"] = self.destroyer_1 = ShipSetup(2, self, "destroyer")
+        self.ships["destroyer_2"] = self.destroyer_2 = ShipSetup(2, self, "destroyer")
+        self.ships["destroyer_3"] = self.destroyer_3 = ShipSetup(2, self, "destroyer")
+        self.ships["patroal_1"] = self.patroal_1 = ShipSetup(1, self, "patroal_boat")
+        self.ships["patroal_2"] = self.patroal_2 = ShipSetup(1, self, "patroal_boat")
+        self.ships["patroal_3"] = self.patroal_3 = ShipSetup(1, self, "patroal_boat")
+        self.ships["patroal_4"] = self.patroal_4 = ShipSetup(1, self, "patroal_boat")
         self.carrier.set_default_pos(left=self.navy_grid.right + 100, top=self.navy_grid.top + 30)
         self.battleship_1.set_default_pos(left=self.carrier.left, top=self.carrier.bottom + 70)
         for i in range(1, 2):

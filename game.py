@@ -333,7 +333,10 @@ class Player:
                 if msg is None or msg == b"quit":
                     game.show_finish_screen(forfeit=True)
                 else:
-                    self.position_played = pickle.loads(msg)
+                    try:
+                        self.position_played = pickle.loads(msg)
+                    except EOFError:
+                        return True
         return False
 
     def reset_position(self):

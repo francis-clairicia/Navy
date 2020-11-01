@@ -1,12 +1,13 @@
 # -*- coding: Utf-8 -*
 
-from my_pygame.window import Window
-from my_pygame.classes import Text, RectangleShape
-from my_pygame.colors import WHITE, BLACK
+from .window import Window
+from .text import Text
+from .shape import RectangleShape
+from .colors import WHITE, BLACK
 
 class Loading(Window):
-    def __init__(self, text="Loading...", bg=BLACK, opening=True, ending=True, side_opening="left", side_ending="left"):
-        Window.__init__(self)
+    def __init__(self, text="Loading...", font=("calibri", 300), bg=BLACK, opening=True, ending=True, side_opening="left", side_ending="right"):
+        Window.__init__(self, bg_color=None)
         self.master = None
         speed = 50
         self.animation_opening = {
@@ -16,13 +17,13 @@ class Loading(Window):
             "bottom": lambda x=0, y=-speed: self._show_animation(x, y)
         }
         self.animation_init_opening = {
-            "left": {"right": self.window_rect.left - 1, "centery": self.window_rect.centery},
-            "right": {"left": self.window_rect.right + 1, "centery": self.window_rect.centery},
-            "top": {"bottom": self.window_rect.top - 1, "centerx": self.window_rect.centerx},
-            "bottom": {"top": self.window_rect.bottom + 1, "centerx": self.window_rect.centerx}
+            "left": {"right": self.left - 1, "centery": self.centery},
+            "right": {"left": self.right + 1, "centery": self.centery},
+            "top": {"bottom": self.top - 1, "centerx": self.centerx},
+            "bottom": {"top": self.bottom + 1, "centerx": self.centerx}
         }
-        self.rectangle = RectangleShape(self.window_rect.size, bg)
-        self.text = Text(text, ("calibri", 300), WHITE)
+        self.rectangle = RectangleShape(self.w, self.h, bg)
+        self.text = Text(text, font, WHITE)
         self.animation_ending = {
             "left": lambda x=-speed, y=0: self._hide_animation(x, y),
             "right": lambda x=speed, y=0: self._hide_animation(x, y),
@@ -45,7 +46,7 @@ class Loading(Window):
             self.rectangle.move(**self.animation_init_opening[self.side_opening])
             self.text.move(center=self.rectangle.center)
             self.after(0, self.animation_opening[self.side_opening])
-            self.mainloop(fill_bg=False)
+            self.mainloop()
 
     def hide(self, master: Window):
         self.master = master
@@ -53,6 +54,7 @@ class Loading(Window):
             self.draw_screen()
             self.refresh()
         else:
+            self.master.place_objects()
             self.after(0, self.animation_ending[self.side_ending])
             self.mainloop(fill_bg=False)
 
@@ -61,10 +63,10 @@ class Loading(Window):
         self.text.move(center=self.rectangle.center)
         self.master.draw_screen()
         side = self.side_opening
-        if (side == "left" and self.rectangle.left > self.window_rect.left) \
-        or (side == "right" and self.rectangle.right < self.window_rect.right) \
-        or (side == "top" and self.rectangle.top > self.window_rect.top) \
-        or (side == "bottom" and self.rectangle.bottom < self.window_rect.bottom):
+        if (side == "left" and self.rectangle.left > self.left) \
+        or (side == "right" and self.rectangle.right < self.right) \
+        or (side == "top" and self.rectangle.top > self.top) \
+        or (side == "bottom" and self.rectangle.bottom < self.bottom):
             self.rectangle.move(x=0, y=0)
             self.draw_screen()
             self.refresh()
@@ -76,7 +78,7 @@ class Loading(Window):
         self.rectangle.rect.move_ip(x_offset, y_offset)
         self.text.move(center=self.rectangle.center)
         self.master.draw_screen()
-        if not self.window_rect.colliderect(self.rectangle.rect):
+        if not self.rect.colliderect(self.rectangle.rect):
             self.stop()
         else:
             self.after(10, lambda x=x_offset, y=y_offset: self._hide_animation(x, y))

@@ -7,11 +7,11 @@ import random
 import json
 import pygame
 from typing import Sequence, Dict, Any, Tuple, Union
-from constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
 from my_pygame import Window, DrawableList, DrawableListHorizontal, DrawableListVertical
 from my_pygame import Image, ImageButton, Text, RectangleShape, Button
 from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, BLACK, WHITE, YELLOW, TRANSPARENT, RED, RED_DARK
-from player import Player
+from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
+from .player import Player
 
 class Box(Button):
     def __init__(self, master, navy, size: Tuple[int, int], pos: Tuple[int, int]):

@@ -5,15 +5,15 @@ import socket
 from math import sin, cos
 from typing import Tuple, Sequence, Dict, Any
 import pygame
-from constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
 from my_pygame import Window
 from my_pygame import Image, ImageButton, Button, RectangleShape, Text
 from my_pygame import DrawableListHorizontal, DrawableListVertical
 from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, WHITE, YELLOW, RED, TRANSPARENT
 from my_pygame import CountDown
 from my_pygame.vector import Vector2
-from player import Player
-from game import Gameplay
+from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
+from .player import Player
+from .game import Gameplay
 
 class BoxSetup(Button):
     def __init__(self, master, size: Tuple[int, int], pos: Tuple[int, int]):

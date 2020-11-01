@@ -4,11 +4,35 @@ import socket
 import select
 import pygame
 from typing import Type, Union
-from my_pygame import Window, RectangleShape, Image, Button, ButtonListVertical, Scale, Text, CountDown, Entry
+from my_pygame import Window, RectangleShape, Image, Button, DrawableListVertical, ButtonListVertical, Scale, Text, CountDown, Entry
 from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, YELLOW
 from my_pygame import BLACK, GREEN, GREEN_DARK, GREEN_LIGHT, YELLOW, TRANSPARENT
-from constants import RESOURCES
-from navy_setup import NavySetup
+from .constants import RESOURCES
+from .navy_setup import NavySetup
+from .version import __version__
+
+class Credits(Window):
+    def __init__(self, master: Window):
+        Window.__init__(self, master=master, bg_music=master.bg_music)
+        self.frame = RectangleShape(0.5 * self.width, 0.5 * self.height, GREEN, outline=3)
+        title_font = ("calibri", 32, "bold")
+        simple_font = ("calibri", 32)
+        self.text = DrawableListVertical(offset=50)
+        self.text.add(
+            Text("Backgroun musics and SFX\nby Eric Matyas: www.soundimage.org", font=simple_font, justify=Text.T_CENTER),
+            Text("Images\ntaken in Google Image\n(except the logo)", font=simple_font, justify=Text.T_CENTER),
+        )
+        for text in self.text:
+            text.set_custom_line_font(0, title_font)
+        # self.button_red_cross = ImageButton(self, img=RESOURCES.IMG["red_cross"],
+        #                                     active_img=RESOURCES.IMG["red_cross_hover"],
+        #                                     hover_sound=RESOURCES.SFX["select"], on_click_sound=RESOURCES.SFX["back"],
+        #                                     callback=self.stop, highlight_color=YELLOW)
+        self.bind_key(pygame.K_ESCAPE, lambda event: self.stop())
+
+    def place_objects(self):
+        self.frame.center = self.center
+        self.text.center = self.frame.center
 
 class PlayerServer(Window):
     def __init__(self, master):
@@ -177,7 +201,7 @@ class NavyWindow(Window):
     def __init__(self):
         Window.__init__(self, size=(1280, 720), flags=pygame.DOUBLEBUF, bg_music=RESOURCES.MUSIC["menu"])
         self.set_icon(RESOURCES.IMG["icon"])
-        self.set_title("Navy")
+        self.set_title(f"Navy - v{__version__}")
         self.set_fps(60)
         self.disable_key_joy_focus_for_all_window()
 
@@ -199,17 +223,24 @@ class NavyWindow(Window):
             Button(self, "Play as P2", **params_for_all_buttons, callback=lambda: self.multiplayer_menu(PlayerClient)),
             Button(self, "Quit", **params_for_all_buttons, callback=self.stop)
         )
-        self.button_settings = Button(self, img=Image(RESOURCES.IMG["settings"], size=50), compound="center", callback=self.open_settings, **params_for_all_buttons)
+        self.button_credits = Button(self, "Credits", callback=self.open_credits, **params_for_all_buttons)
+        self.button_settings = Button(self, img=Image(RESOURCES.IMG["settings"], size=self.button_credits.height - 20), compound="center", callback=self.open_settings, **params_for_all_buttons)
 
     def place_objects(self):
         self.bg.center = self.center
         self.logo.centerx = self.centerx
         self.menu_buttons.move(centerx=self.centerx, bottom=self.bottom - 20)
         self.button_settings.move(left=10, bottom=self.bottom - 10)
+        self.button_credits.move(right=self.right - 10, bottom=self.bottom - 10)
 
     def open_settings(self):
         self.hide_all(without=[self.bg, self.logo])
         Options(self).mainloop()
+        self.show_all()
+
+    def open_credits(self):
+        self.hide_all(without=[self.bg, self.logo])
+        Credits(self).mainloop()
         self.show_all()
 
     def single_player(self):

@@ -149,6 +149,8 @@ class Clickable(Focusable):
         if self.valid_click(event, down=True):
             self.active = True
             self.on_click_down(event)
+        else:
+            self.focus_leave()
 
     def mouse_motion(self, mouse_pos: Tuple[int, int]) -> None:
         if hasattr(self, "is_shown") and getattr(self, "is_shown")() is False:

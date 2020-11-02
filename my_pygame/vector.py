@@ -1,6 +1,5 @@
 # -*- coding: Utf-8 -*
 
-import math
 from typing import Tuple
 import pygame.math
 

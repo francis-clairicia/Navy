@@ -1,6 +1,6 @@
 # -*- coding: Utf-8 -*
 
-from typing import Tuple, Optional, Any, Union
+from typing import Tuple, Optional, Any, Union, Callable
 import pygame
 from pygame.sprite import Sprite
 from .vector import Vector2
@@ -16,6 +16,8 @@ class Drawable(Sprite):
         self.__former_moves = dict()
         self.__draw_sprite = True
         self.__valid_size = True
+        self.__animation_started = False
+        self.__animation_params = dict()
         self.image = surface
         self.rotate(rotate)
         for key in filter(lambda key: not hasattr(self.__rect, key), list(kwargs.keys())):
@@ -118,20 +120,48 @@ class Drawable(Sprite):
         self.__rect = self.__surface.get_rect(x=self.__x, y=self.__y)
         self.__former_moves = {"x": self.__x, "y": self.__y}
 
-    def animate_move(self, master, milliseconds: float, after_move=None, **kwargs):
-        if milliseconds <= 0:
+    def animate_move(self, master, milliseconds: float, speed=1, after_move=None, **kwargs):
+        if milliseconds <= 0 or speed <= 0:
             self.move(**kwargs)
         else:
-            projection = Drawable(self.image)
-            projection.move(**kwargs)
-            direction = Vector2.from_two_points(self.center, projection.center)
-            length = int(direction.length())
-            direction.normalize_ip()
-            for i in range(1, length):
-                master.after(milliseconds * i, lambda x=direction.x, y=direction.y: self.move_ip(x, y))
-            master.after(milliseconds * length, lambda keywords=kwargs: self.move(**keywords))
+            self.__animation_started = True
+            self.__animation_params.update(
+                master=master,
+                milliseconds=milliseconds,
+                speed=speed,
+                kwargs=kwargs,
+                after_move=after_move
+            )
+            self.__animate_move(**self.__animation_params)
+
+    def __animate_move(self, master, milliseconds: float, speed: float, kwargs: dict, after_move: Callable[..., Any]) -> None:
+        if not self.__animation_started:
+            return
+        projection = Drawable(self.image)
+        projection.move(**kwargs)
+        direction = Vector2.from_two_points(self.center, projection.center)
+        length = direction.length() - speed
+        if length <= 0:
+            self.move(**kwargs)
+            self.__animation_started = False
+            self.__animation_params.clear()
             if callable(after_move):
-                master.after(milliseconds * length, after_move)
+                after_move()
+        else:
+            direction.scale_to_length(speed)
+            self.move_ip(direction.x, direction.y)
+            master.after(milliseconds, lambda: self.__animate_move(**self.__animation_params))
+
+    def animate_move_started(self) -> bool:
+        return self.__animation_started
+
+    def animate_move_stop(self):
+        self.__animation_started = False
+
+    def animate_move_restart(self):
+        if not self.__animation_started and self.__animation_params:
+            self.__animation_started = True
+            self.__animate_move(**self.__animation_params)
 
     def rotate(self, angle: float) -> None:
         angle %= 360

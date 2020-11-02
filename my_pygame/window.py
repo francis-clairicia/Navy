@@ -31,8 +31,11 @@ class WindowCallback(object):
 
 class Window(object):
 
-    surface = property(lambda self: pygame.display.get_surface())
-    rect = property(lambda self: self.surface.get_rect())
+    MIXER_FREQUENCY = 44100
+    MIXER_SIZE = -16
+    MIXER_CHANNELS = 2
+    MIXER_BUFFER = 512
+
     __default_key_repeat = (0, 0)
     __text_input_enabled = False
     __all_opened = list()
@@ -84,7 +87,7 @@ class Window(object):
     @staticmethod
     def init_pygame(size=(0, 0), flags=0):
         if not pygame.get_init():
-            pygame.mixer.pre_init(44100, -16, 2, 512)
+            pygame.mixer.pre_init(Window.MIXER_FREQUENCY, Window.MIXER_SIZE, Window.MIXER_CHANNELS, Window.MIXER_BUFFER)
             status = pygame.init()
             if status[1] > 0:
                 print("Error on pygame initialization ({} modules failed to load)".format(status[1]), file=sys.stderr)
@@ -151,7 +154,7 @@ class Window(object):
 
     @staticmethod
     def set_icon(icon: pygame.Surface):
-        pygame.display.set_icon(icon)
+        pygame.display.set_icon(pygame.transform.smoothscale(icon, (32, 32)))
 
     @staticmethod
     def set_title(title: str):
@@ -302,8 +305,11 @@ class Window(object):
             for callback in Window.all_window_event_handler_dict.get(event.type, tuple()):
                 callback(event)
 
-    def set_focus(self, obj: Drawable) -> None:
+    def set_focus(self, obj: Focusable) -> None:
         self.objects.set_focus(obj)
+
+    def remove_focus(self, obj: Focusable) -> None:
+        self.objects.remove_focus(obj)
 
     def handle_focus(self, event: pygame.event.Event) -> None:
         if event.type in [pygame.KEYDOWN, pygame.JOYHATMOTION]:
@@ -543,6 +549,8 @@ class Window(object):
             Window.__default_key_repeat = (0, 0)
             Window.__text_input_enabled = False
 
+    surface = property(lambda self: pygame.display.get_surface())
+    rect = property(lambda self: self.surface.get_rect())
     left = property(lambda self: self.rect.left)
     right = property(lambda self: self.rect.right)
     top = property(lambda self: self.rect.top)

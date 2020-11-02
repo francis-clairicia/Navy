@@ -89,26 +89,22 @@ class ShipSetup(Image):
         self.boxes_covered.clear()
 
     def select_event(self, event: pygame.event.Event) -> None:
-        if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos):
+        if event.type == pygame.MOUSEBUTTONDOWN and self.rect.collidepoint(event.pos) and not self.animate_move_started():
             self.clicked = True
             self.center_before_click = self.center
-            self.pos_offset = (event.pos[0] - self.left, event.pos[1] - self.top)
             self.move_ip(0, -3)
 
     def unselect_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEBUTTONUP and self.clicked:
             if (self.on_move and not self.place_ship_on_map()) or (not self.on_move and not self.rotate_ship()):
-                self.animate_move(self.master, 1, center=self.center_before_click)
+                self.animate_move(self.master, 10, speed=30, center=self.center_before_click)
             self.clicked = self.on_move = False
             self.master.remove_boxes_highlight()
 
     def move_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.MOUSEMOTION and self.clicked:
             self.on_move = True
-            topleft = list(event.pos)
-            for i in range(2):
-                topleft[i] -= self.pos_offset[i]
-            self.move(topleft=tuple(topleft))
+            self.move_ip(*event.rel)
             self.master.highlight_boxes(self)
 
     def place_ship_on_map(self, boxes=None) -> bool:

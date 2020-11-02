@@ -147,6 +147,13 @@ class DrawableList:
         else:
             self.__index = -1
 
+    def remove_focus(self, obj: Focusable):
+        if obj not in self.focusable:
+            return
+        obj.focus = False
+        if self.focus_get() == obj:
+            self.set_focus(None)
+
     def focus_mode_update(self):
         if Focusable.MODE != Focusable.MODE_MOUSE and self.focus_get() is None:
             self.focus_next()

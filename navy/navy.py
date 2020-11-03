@@ -58,7 +58,8 @@ class PlayerServer(Window):
         self.check_incoming_connections()
 
     def on_quit(self):
-        self.socket.close()
+        if self.socket is not None:
+            self.socket.close()
 
     def place_objects(self):
         self.frame.move(center=self.center)
@@ -74,6 +75,8 @@ class PlayerServer(Window):
             connections = select.select([self.socket], [], [], 0.05)[0]
             if connections:
                 socket_player = connections[0].accept()[0]
+                self.socket.close()
+                self.socket = None
                 self.text_title.hide()
                 self.button_cancel.state = Button.DISABLED
                 self.lets_play_countdown.start(at_end=lambda: self.play(socket_player))

@@ -19,8 +19,8 @@ class Focusable:
         self.__take_focus = True
         self.__from_master = False
         self.__master = master
-        self.highlight_color = highlight_color
-        self.highlight_thickness = highlight_thickness
+        self.__highlight_color = highlight_color
+        self.__highlight_thickness = highlight_thickness
 
     @property
     def focus(self) -> bool:
@@ -55,11 +55,11 @@ class Focusable:
         if not self.has_focus():
             return
         if hasattr(self, "rect"):
-            outline = getattr(self, "outline", self.highlight_thickness)
+            outline = getattr(self, "outline", self.__highlight_thickness)
             if outline <= 0:
-                outline = self.highlight_thickness
+                outline = self.__highlight_thickness
             if outline > 0:
-                pygame.draw.rect(surface, self.highlight_color, getattr(self, "rect"), width=outline)
+                pygame.draw.rect(surface, self.__highlight_color, getattr(self, "rect"), width=outline)
 
     def has_focus(self) -> bool:
         return self.__focus

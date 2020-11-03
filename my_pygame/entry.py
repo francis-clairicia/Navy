@@ -9,11 +9,12 @@ from .window import Window
 class Entry(Clickable, RectangleShape):
     def __init__(self, master: Window, width=10, font=None, bg=(255, 255, 255), fg=(0, 0, 0),
                  state="normal", highlight_color=(128, 128, 128), hover_sound=None, on_click_sound=None, disabled_sound=None, **kwargs):
-        self.text = Text(font=font, color=fg)
+        self.__text = Text(font=font, color=fg)
         if width <= 0:
             width = 1
         self.__nb_chars = width
-        width, height = self.text.font.size("|" + "_" * (width))
+        width, height = self.__text.font.size("|" + "_" * (width))
+        self.__cursor_height = height
         RectangleShape.__init__(self, width + 10, height + 10, bg, **kwargs)
         Clickable.__init__(
             self, master, callback=self.start_edit, state=state, highlight_color=highlight_color,
@@ -32,14 +33,14 @@ class Entry(Clickable, RectangleShape):
 
     def after_drawing(self, surface: pygame.Surface) -> None:
         RectangleShape.after_drawing(self, surface)
-        self.text.move(left=self.left + 10, centery=self.centery)
-        self.text.draw(surface)
+        self.__text.move(left=self.left + 10, centery=self.centery)
+        self.__text.draw(surface)
         if self.edit() and self.__show_cursor:
-            width = self.text.font.size(self.text.message[:self.cursor])[0] + 1
-            height = self.height - 10
-            cursor_start = (self.text.left + width, self.text.centery - height // 2)
-            cursor_end = (self.text.left + width, self.text.centery + height // 2)
-            pygame.draw.line(surface, self.text.color, cursor_start, cursor_end, 2)
+            width = self.__text.font.size(self.__text.message[:self.cursor])[0] + 1
+            height = self.__cursor_height
+            cursor_start = (self.__text.left + width, self.__text.centery - height // 2)
+            cursor_end = (self.__text.left + width, self.__text.centery + height // 2)
+            pygame.draw.line(surface, self.__text.color, cursor_start, cursor_end, 2)
 
     def __animate_cursor(self, milliseconds: float):
         if not self.edit():
@@ -63,7 +64,7 @@ class Entry(Clickable, RectangleShape):
             self.__cursor = len(self.get())
 
     def get(self) -> str:
-        return self.text.message
+        return self.__text.message
 
     def start_edit(self):
         self.master.enable_text_input(self.rect)
@@ -86,10 +87,10 @@ class Entry(Clickable, RectangleShape):
         if self.edit():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_BACKSPACE:
-                    self.text.message = self.text.message[:self.cursor - 1] + self.text.message[self.cursor:]
+                    self.__text.message = self.__text.message[:self.cursor - 1] + self.__text.message[self.cursor:]
                     self.cursor -= 1
                 elif event.key == pygame.K_DELETE:
-                    self.text.message = self.text.message[:self.cursor] + self.text.message[self.cursor + 1:]
+                    self.__text.message = self.__text.message[:self.cursor] + self.__text.message[self.cursor + 1:]
                 elif event.key == pygame.K_LEFT:
                     self.cursor -= 1
                 elif event.key == pygame.K_RIGHT:
@@ -97,14 +98,14 @@ class Entry(Clickable, RectangleShape):
                 elif event.key == pygame.K_HOME:
                     self.cursor = 0
                 elif event.key == pygame.K_END:
-                    self.cursor = len(self.text.message)
+                    self.cursor = len(self.__text.message)
                 self.__show_cursor = True
             elif event.type == pygame.TEXTEDITING:
                 if event.length <= self.__nb_chars:
-                    self.text.message = event.text
+                    self.__text.message = event.text
                     self.cursor = event.start
             elif event.type == pygame.TEXTINPUT:
-                new_text = self.text.message[:self.cursor] + event.text + self.text.message[self.cursor:]
+                new_text = self.__text.message[:self.cursor] + event.text + self.__text.message[self.cursor:]
                 if len(new_text) <= self.__nb_chars:
-                    self.text.message = new_text
+                    self.__text.message = new_text
                     self.cursor += len(event.text)

@@ -18,15 +18,8 @@ class Drawable(Sprite):
         self.__valid_size = True
         self.__animation_started = False
         self.__animation_params = dict()
-        self.image = surface
+        self.image = self.resize_surface(surface, **kwargs)
         self.rotate(rotate)
-        for key in filter(lambda key: not hasattr(self.__rect, key), list(kwargs.keys())):
-            kwargs.pop(key)
-        self.move(**kwargs)
-
-    @property
-    def angle(self) -> float:
-        return self.__angle
 
     @classmethod
     def from_size(cls, size: Tuple[int, int], **kwargs):
@@ -65,33 +58,38 @@ class Drawable(Sprite):
 
     @image.setter
     def image(self, surface: pygame.Surface) -> None:
-        if not isinstance(surface, pygame.Surface):
+        if isinstance(surface, Drawable):
+            surface = surface.image
+        elif not isinstance(surface, pygame.Surface):
             surface = pygame.Surface((0, 0), flags=pygame.SRCALPHA)
         self.__surface = surface
         self.__rect = self.__surface.get_rect(**self.__former_moves)
-        self.__mask = pygame.mask.from_surface(self.__surface)
+        self.mask_update()
 
     @property
-    def rect(self):
+    def rect(self) -> pygame.Rect:
         return self.__rect
 
     @property
-    def mask(self):
+    def mask(self) -> pygame.mask.Mask:
         return self.__mask
+
+    def mask_update(self) -> None:
+        self.__mask = pygame.mask.from_surface(self.__surface)
+
+    @property
+    def angle(self) -> float:
+        return self.__angle
 
     def draw(self, surface: pygame.Surface) -> None:
         if self.is_shown():
             self.before_drawing(surface)
-            if self.image_drawing_condition():
-                surface.blit(self.image, self.rect)
+            surface.blit(self.image, self.rect)
             self.after_drawing(surface)
             self.focus_drawing(surface)
 
     def before_drawing(self, surface: pygame.Surface) -> None:
         pass
-
-    def image_drawing_condition(self) -> bool:
-        return True
 
     def after_drawing(self, surface: pygame.Surface) -> None:
         pass
@@ -167,29 +165,74 @@ class Drawable(Sprite):
         angle %= 360
         if angle != 0:
             self.image = pygame.transform.rotate(self.image, angle)
-            self.__angle += angle
+            self.__angle = (self.__angle + angle) % 360
+            if self.__angle < 0:
+                self.__angle += 360
 
-    def set_size(self, *args, smooth=True) -> None:
-        size = args if len(args) == 2 else args[0]
-        if not isinstance(size, (tuple, list)):
-            size = (size, size)
-        size = (round(size[0]), round(size[1]))
-        if size[0] > 0 and size[1] > 0:
-            if smooth:
-                self.image = pygame.transform.smoothscale(self.image, size)
-            else:
-                self.image = pygame.transform.scale(self.image, size)
-            self.__valid_size = True
+    @staticmethod
+    def resize_surface(surface: pygame.Surface, size: Optional[Union[int, Tuple[int, int]]] = None,
+             width: Optional[int] = None, height: Optional[int] = None,
+             min_width: Optional[int] = None, min_height: Optional[int] = None,
+             max_width: Optional[int] = None, max_height: Optional[int] = None,
+             smooth=True) -> pygame.Surface:
+        if smooth:
+            scale_func = pygame.transform.smoothscale
         else:
+            scale_func = pygame.transform.scale
+        w, h = surface.get_size()
+        if isinstance(size, (list, tuple)):
+            width, height = size
+        elif isinstance(size, int):
+            width = height = size
+        width = round(width) if isinstance(width, (int, float)) else None
+        height = round(height) if isinstance(height, (int, float)) else None
+        min_width = round(min_width) if isinstance(min_width, (int, float)) else None
+        min_height = round(min_height) if isinstance(min_height, (int, float)) else None
+        max_width = round(max_width) if isinstance(max_width, (int, float)) else None
+        max_height = round(max_height) if isinstance(max_height, (int, float)) else None
+        if isinstance(min_width, int):
+            width = max(min_width, width) if isinstance(width, int) else min_width
+        if isinstance(min_height, int):
+            height = max(min_height, height) if isinstance(height, int) else min_height
+        if isinstance(max_width, int):
+            width = min(max_width, width) if isinstance(width, int) else max_width
+        if isinstance(max_height, int):
+            height = min(max_height, height) if isinstance(height, int) else max_height
+        if isinstance(width, int) and isinstance(height, int):
+            surface = scale_func(surface, (width, height))
+        elif isinstance(width, int):
+            height = 0 if width == 0 else round(h * width / (w if w != 0 else width))
+            surface = scale_func(surface, (width, height))
+        elif isinstance(height, int):
+            width = 0 if height == 0 else round(w * height / (h if h != 0 else height))
+            surface = scale_func(surface, (width, height))
+        return surface
+
+    def set_size(self, *size: Union[int, Tuple[int, int]], smooth=True) -> None:
+        size = size if len(size) == 2 else size[0]
+        # size = round(size[0]), round(size[1])
+        try:
+            self.image = self.resize_surface(self.image, size=size, smooth=smooth)
+        except pygame.error:
             self.__valid_size = False
+        else:
+            self.__valid_size = True
 
     def set_width(self, width: float, smooth=True)-> None:
-        height = 0 if width == 0 else round(self.__rect.h * width / self.__rect.w)
-        self.set_size(width, height, smooth=smooth)
+        try:
+            self.image = self.resize_surface(self.image, width=width, smooth=smooth)
+        except pygame.error:
+            self.__valid_size = False
+        else:
+            self.__valid_size = True
 
     def set_height(self, height: float, smooth=True) -> None:
-        width = 0 if height == 0 else round(self.__rect.w * height / self.__rect.h)
-        self.set_size(width, height, smooth=smooth)
+        try:
+            self.image = self.resize_surface(self.image, height=height, smooth=smooth)
+        except pygame.error:
+            self.__valid_size = False
+        else:
+            self.__valid_size = True
 
     left = property(lambda self: self.rect.left, lambda self, value: self.move(left=value))
     right = property(lambda self: self.rect.right, lambda self, value: self.move(right=value))

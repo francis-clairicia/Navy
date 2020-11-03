@@ -43,13 +43,13 @@ class Window(object):
     __music_volume = 0
     __enable_music = True
     __enable_sound = True
-    actual_music = None
+    __actual_music = None
     __show_fps = False
     __fps = 60
     __fps_obj = None
     __joystick = list()
-    all_window_event_handler_dict = dict()
-    keyboard = Keyboard()
+    __all_window_event_handler_dict = dict()
+    __keyboard = Keyboard()
     __all_window_key_enabled = True
 
     def __init__(self, master=None, size=(0, 0), flags=0, bg_color=(0, 0, 0), bg_music=None):
@@ -58,14 +58,14 @@ class Window(object):
         self.main_clock = pygame.time.Clock()
         self.__loop = False
         self.objects = DrawableList()
-        self.event_handler_dict = dict()
-        self.key_handler_dict = dict()
-        self.key_state_dict = dict()
-        self.joystick_handler_dict = dict()
-        self.joystick_state_dict = dict()
-        self.mouse_handler_list = list()
+        self.__event_handler_dict = dict()
+        self.__key_handler_dict = dict()
+        self.__key_state_dict = dict()
+        self.__joystick_handler_dict = dict()
+        self.__joystick_state_dict = dict()
+        self.__mosue_handler_list = list()
         self.bg_color = bg_color
-        self.callback_after = list()
+        self.__callback_after = list()
         self.rect_to_update = None
         self.bg_music = bg_music
         focus_event = (
@@ -125,6 +125,10 @@ class Window(object):
                 return joy.device_index
         return -1
 
+    @property
+    def keyboard(self) -> Keyboard:
+        return Window.__keyboard
+
     def __setattr__(self, name, obj):
         if isinstance(obj, (Drawable, DrawableList)) and name != "objects":
             self.objects.add(obj)
@@ -181,9 +185,9 @@ class Window(object):
         self.fps_update()
         self.on_start_loop()
         while self.__loop:
-            for callback in filter(lambda window_callback: window_callback.can_call(), self.callback_after.copy()):
+            for callback in filter(lambda window_callback: window_callback.can_call(), self.__callback_after.copy()):
                 callback()
-                self.callback_after.remove(callback)
+                self.__callback_after.remove(callback)
             self.main_clock.tick(Window.__fps)
             self.objects.focus_mode_update()
             self.keyboard.update()
@@ -274,13 +278,13 @@ class Window(object):
         self.refresh()
 
     def event_handler(self):
-        for key_value, callback_list in self.key_state_dict.items():
+        for key_value, callback_list in self.__key_state_dict.items():
             for callback in callback_list:
                 callback(key_value, self.keyboard.is_pressed(key_value))
-        for callback in self.mouse_handler_list:
+        for callback in self.__mosue_handler_list:
             callback(pygame.mouse.get_pos())
-        for joy_id in filter(lambda joy: joy in range(len(self.joystick)), self.joystick_state_dict.keys()):
-            for action, callback_list in self.joystick_state_dict[joy_id].items():
+        for joy_id in filter(lambda joy: joy in range(len(self.joystick)), self.__joystick_state_dict.keys()):
+            for action, callback_list in self.__joystick_state_dict[joy_id].items():
                 for callback in callback_list:
                     callback(self.joystick[joy_id].get_value(action))
         for event in pygame.event.get():
@@ -288,11 +292,11 @@ class Window(object):
             or (event.type == pygame.KEYDOWN and event.key == pygame.K_F4 and (event.mod & pygame.KMOD_LALT)):
                 self.stop(force=True)
             elif event.type == pygame.KEYDOWN:
-                for callback in self.key_handler_dict.get(event.key, tuple()):
+                for callback in self.__key_handler_dict.get(event.key, tuple()):
                     callback(event)
             elif event.type in [pygame.JOYBUTTONDOWN, pygame.JOYAXISMOTION, pygame.JOYHATMOTION]:
                 joy = self.joy_search_device_index_from_instance_id(event.instance_id)
-                joystick_handler_dict = self.joystick_handler_dict.get(joy, dict())
+                joystick_handler_dict = self.__joystick_handler_dict.get(joy, dict())
                 event_handler = {
                     pygame.JOYBUTTONDOWN: {"event_type": "button", "index": getattr(event, "button", -1)},
                     pygame.JOYAXISMOTION: {"event_type": "axis", "index": getattr(event, "axis", -1)},
@@ -300,9 +304,9 @@ class Window(object):
                 }
                 for callback in joystick_handler_dict.get(self.joystick[joy].search_key(**event_handler[event.type]), tuple()):
                     callback(event)
-            for callback in self.event_handler_dict.get(event.type, tuple()):
+            for callback in self.__event_handler_dict.get(event.type, tuple()):
                 callback(event)
-            for callback in Window.all_window_event_handler_dict.get(event.type, tuple()):
+            for callback in Window.__all_window_event_handler_dict.get(event.type, tuple()):
                 callback(event)
 
     def set_focus(self, obj: Focusable) -> None:
@@ -343,29 +347,29 @@ class Window(object):
             Focusable.MODE = Focusable.MODE_MOUSE
 
     def after(self, milliseconds: float, callback: Callable[..., Any]):
-        self.callback_after.append(WindowCallback(callback, milliseconds))
+        self.__callback_after.append(WindowCallback(callback, milliseconds))
 
     def bind_event(self, event_type, callback):
-        event_list = self.event_handler_dict.get(event_type)
+        event_list = self.__event_handler_dict.get(event_type)
         if event_list is None:
-            event_list = self.event_handler_dict[event_type] = list()
+            event_list = self.__event_handler_dict[event_type] = list()
         event_list.append(callback)
 
     @staticmethod
     def bind_event_all_window(event_type, callback):
-        event_list = Window.all_window_event_handler_dict.get(event_type)
+        event_list = Window.__all_window_event_handler_dict.get(event_type)
         if event_list is None:
-            event_list = Window.all_window_event_handler_dict[event_type] = list()
+            event_list = Window.__all_window_event_handler_dict[event_type] = list()
         event_list.append(callback)
 
     def bind_mouse(self, callback):
-        self.mouse_handler_list.append(callback)
+        self.__mosue_handler_list.append(callback)
 
     def bind_key(self, key_value, callback, hold=False):
         if not hold:
-            key_dict = self.key_handler_dict
+            key_dict = self.__key_handler_dict
         else:
-            key_dict = self.key_state_dict
+            key_dict = self.__key_state_dict
         key_list = key_dict.get(key_value)
         if key_list is None:
             key_list = key_dict[key_value] = list()
@@ -373,9 +377,9 @@ class Window(object):
 
     def bind_joystick(self, joy_id, action, callback, state=False):
         if not state:
-            joystick_handler_dict = self.joystick_handler_dict
+            joystick_handler_dict = self.__joystick_handler_dict
         else:
-            joystick_handler_dict = self.joystick_state_dict
+            joystick_handler_dict = self.__joystick_state_dict
         joystick_dict = joystick_handler_dict.get(joy_id)
         if joystick_dict is None:
             joystick_dict = joystick_handler_dict[joy_id] = dict()
@@ -399,13 +403,13 @@ class Window(object):
     def handle_bg_music(self):
         if not Window.__enable_music or (self.bg_music is None and pygame.mixer.get_busy()):
             self.stop_music()
-        elif Window.__enable_music and self.bg_music and (not pygame.mixer.music.get_busy() or Window.actual_music is None or Window.actual_music != self.bg_music):
+        elif Window.__enable_music and self.bg_music and (not pygame.mixer.music.get_busy() or Window.__actual_music is None or Window.__actual_music != self.bg_music):
             self.play_music(self.bg_music)
 
     @staticmethod
     def stop_music():
         pygame.mixer.music.stop()
-        Window.actual_music = None
+        Window.__actual_music = None
 
     @staticmethod
     def play_music(filepath: str):
@@ -414,7 +418,7 @@ class Window(object):
             pygame.mixer.music.load(filepath)
             pygame.mixer.music.set_volume(Window.__music_volume)
             pygame.mixer.music.play(-1)
-            Window.actual_music = filepath
+            Window.__actual_music = filepath
 
     @staticmethod
     def play_sound(sound: pygame.mixer.Sound):
@@ -463,50 +467,11 @@ class Window(object):
     def load_config():
         config = configparser.ConfigParser()
         config.read(CONFIG_FILE)
-        params = {
-            "MUSIC": {
-                "volume": {
-                    "callback": Window.set_music_volume,
-                    "get": config.getfloat,
-                    "default": 50,
-                    "transform": lambda x: x / 100
-                },
-                "enable": {
-                    "callback": Window.set_music_state,
-                    "get": config.getboolean,
-                    "default": True
-                }
-            },
-            "SFX": {
-                "volume": {
-                    "callback": Window.set_sound_volume,
-                    "get": config.getfloat,
-                    "default": 50,
-                    "transform": lambda x: x / 100
-                },
-                "enable": {
-                    "callback": Window.set_sound_state,
-                    "get": config.getboolean,
-                    "default": True
-                }
-            },
-            "FPS": {
-                "show": {
-                    "callback": Window.show_fps,
-                    "get": config.getboolean,
-                    "default": False
-                }
-            },
-        }
-        for section, option_dict in params.items():
-            for option, setup in option_dict.items():
-                callback = setup["callback"]
-                get_value = setup["get"]
-                get_value_params = dict()
-                if "default" in setup:
-                    get_value_params["fallback"] = setup["default"]
-                transform = setup.get("transform", lambda value: value)
-                callback(transform(get_value(section, option, **get_value_params)))
+        Window.set_music_volume(config.getfloat("MUSIC", "volume", fallback=0) / 100)
+        Window.set_music_state(config.getboolean("MUSIC", "enable", fallback=True))
+        Window.set_sound_volume(config.getfloat("SFX", "volume", fallback=0) / 100)
+        Window.set_sound_state(config.getboolean("SFX", "enable", fallback=True))
+        Window.show_fps(config.getboolean("FPS", "show", fallback=False))
 
     @staticmethod
     def save_config():

@@ -8,7 +8,7 @@ import json
 import pygame
 from typing import Sequence, Dict, Any, Tuple, Union
 from my_pygame import Window, DrawableList, DrawableListHorizontal, DrawableListVertical
-from my_pygame import Image, ImageButton, Text, RectangleShape, Button
+from my_pygame import Image, ImageButton, Text, RectangleShape, Button, Sprite
 from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, BLACK, WHITE, YELLOW, TRANSPARENT, RED, RED_DARK
 from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
 from .player import Player
@@ -266,14 +266,12 @@ class OppositeNavy(Navy):
                 box.state = Button.NORMAL
         return all_ships
 
-class TurnArrow(Image):
+class TurnArrow(Sprite):
     def __init__(self, default: bool, **kwargs):
-        self.arrow = {
-            True: RESOURCES.IMG["green_triangle"],
-            False: RESOURCES.IMG["red_triangle"]
-        }
+        Sprite.__init__(self)
         self.__turn = True
-        Image.__init__(self, self.arrow[self.__turn], **kwargs)
+        self.add_sprite(True, RESOURCES.IMG["green_triangle"], **kwargs)
+        self.add_sprite(False, RESOURCES.IMG["red_triangle"], **kwargs)
         self.turn = default
 
     @property
@@ -283,7 +281,7 @@ class TurnArrow(Image):
     @turn.setter
     def turn(self, state: bool) -> None:
         self.__turn = bool(state)
-        self.load(self.arrow[self.__turn], keep_width=True, keep_height=True)
+        self.set_sprite_list(self.__turn)
 
 class AI:
     def __init__(self):
@@ -438,7 +436,7 @@ class Gameplay(Window):
         self.text_finish.move(y=20, centerx=self.centerx)
         self.player_grid.move(x=20, centery=self.centery)
         self.opposite_grid.move(right=self.right - 20, centery=self.centery)
-        self.turn_checker.set_width(self.opposite_grid.left - self.player_grid.right - 150)
+        self.turn_checker.resize_all_sprites(width=self.opposite_grid.left - self.player_grid.right - 150)
         self.turn_checker.move(center=self.center)
 
     def hit_a_box(self, navy: Navy, box: Union[Tuple[int, int], Box]):

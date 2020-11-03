@@ -219,8 +219,8 @@ class NavySetup(Window):
                 ship_line.add(ShipSetup(self, ship_name, ship_infos["size"]))
             self.ships_list.add(ship_line)
         option_size = 50
-        self.button_restart = ImageButton(self, RESOURCES.IMG["reload_blue"], size=option_size, show_bg=True, callback=self.reinit_all_ships, **params_for_all_buttons)
-        self.button_random = ImageButton(self, RESOURCES.IMG["random"], size=option_size, show_bg=True, callback=self.shuffle, **params_for_all_buttons)
+        self.button_restart = Button.withImageOnly(self, Image(RESOURCES.IMG["reload_blue"], size=option_size), callback=self.reinit_all_ships, **params_for_all_buttons)
+        self.button_random = Button.withImageOnly(self, Image(RESOURCES.IMG["random"], size=option_size), callback=self.shuffle, **params_for_all_buttons)
         self.button_play = Button(self, "Play", font=(None, 40), callback=self.play, state=Button.DISABLED, **params_for_all_buttons)
 
     @property

@@ -5,16 +5,15 @@ import select
 import pygame
 from typing import Type, Union
 from my_pygame import Window, RectangleShape, Image, Button, DrawableListVertical, ButtonListVertical, Scale, Text, CountDown, Entry
-from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, YELLOW
+from my_pygame import Dialog
 from my_pygame import BLACK, GREEN, GREEN_DARK, GREEN_LIGHT, YELLOW, TRANSPARENT
 from .constants import RESOURCES
 from .navy_setup import NavySetup
 from .version import __version__
 
-class Credits(Window):
-    def __init__(self, master: Window):
-        Window.__init__(self, master=master, bg_music=master.bg_music)
-        self.frame = RectangleShape(0.5 * self.width, 0.5 * self.height, GREEN, outline=3)
+class Credits(Dialog):
+    def __init__(self, master: Window, **kwargs):
+        Dialog.__init__(self, master=master, bg_color=GREEN, **kwargs)
         title_font = ("calibri", 32, "bold")
         simple_font = ("calibri", 32)
         self.text = DrawableListVertical(offset=50)
@@ -28,10 +27,8 @@ class Credits(Window):
         #                                     active_img=RESOURCES.IMG["red_cross_hover"],
         #                                     hover_sound=RESOURCES.SFX["select"], on_click_sound=RESOURCES.SFX["back"],
         #                                     callback=self.stop, highlight_color=YELLOW)
-        self.bind_key(pygame.K_ESCAPE, lambda event: self.stop())
 
     def place_objects(self):
-        self.frame.center = self.center
         self.text.center = self.frame.center
 
 class PlayerServer(Window):
@@ -150,10 +147,9 @@ class PlayerClient(Window):
         NavySetup(socket_player, 2).mainloop()
         self.stop()
 
-class Options(Window):
-    def __init__(self, master):
-        Window.__init__(self, master=master, bg_music=master.bg_music)
-        self.frame = RectangleShape(0.5 * self.width, 0.5 * self.height, GREEN_DARK, outline=5)
+class Options(Dialog):
+    def __init__(self, master: Window, **kwargs):
+        Dialog.__init__(self, master=master, bg_color=GREEN_DARK, outline=5, **kwargs)
         self.text_title = Text("Options", ("calibri", 50))
         params_for_all_scales = {
             "width": 0.45 * self.frame.w,
@@ -188,10 +184,8 @@ class Options(Window):
         self.scale_sound.show_label("SFX: ", Scale.S_LEFT, font=params_for_all_buttons["font"])
         self.scale_sound.show_value(Scale.S_RIGHT, font=params_for_all_buttons["font"])
         self.button_cancel = Button(self, "Return to menu", callback=self.stop, **params_for_all_buttons)
-        self.bind_key(pygame.K_ESCAPE, lambda event: self.stop())
 
     def place_objects(self):
-        self.frame.center = self.center
         self.text_title.move(centerx=self.frame.centerx, top=self.frame.top + 50)
         self.scale_music.move(centerx=self.frame.centerx, bottom=self.frame.centery - 20)
         self.scale_sound.move(centerx=self.frame.centerx, top=self.frame.centery + 20)
@@ -223,7 +217,11 @@ class NavyWindow(Window):
             Button(self, "Play as P2", **params_for_all_buttons, callback=lambda: self.multiplayer_menu(PlayerClient)),
             Button(self, "Quit", **params_for_all_buttons, callback=self.stop)
         )
-        self.button_credits = Button(self, "Credits", callback=self.open_credits, **params_for_all_buttons)
+
+        self.credits = Credits(self, hide_all_without=[self.bg, self.logo])
+        self.options = Options(self, hide_all_without=[self.bg, self.logo])
+
+        self.button_credits = Button(self, "Credits", callback=self.credits.mainloop, **params_for_all_buttons)
         self.button_settings = Button(self, img=Image(RESOURCES.IMG["settings"], size=self.button_credits.height - 20), compound="center", callback=self.open_settings, **params_for_all_buttons)
 
     def place_objects(self):

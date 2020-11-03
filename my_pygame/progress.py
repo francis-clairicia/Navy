@@ -19,10 +19,10 @@ class ProgressBar(RectangleShape):
         self.__start = from_
         self.__end = to
         self.percent = 0
+        self.__scale_rect = RectangleShape(0, height, scale_color, **kwargs)
+        self.__bg_rect = RectangleShape(width, height, color, **kwargs)
         if isinstance(default, (int, float)):
             self.value = default
-        self.scale_rect = RectangleShape(width, height, scale_color, **kwargs)
-        self.bg_rect = RectangleShape(width, height, color, **kwargs)
         self.__label_text = Text()
         self.__label_text_side = str()
         self.__value_text = Text()
@@ -31,17 +31,14 @@ class ProgressBar(RectangleShape):
         self.hide_label()
         self.hide_value()
 
-    def set_size(self, *args, smooth=True):
-        RectangleShape.set_size(self, *args, smooth=smooth)
-        self.scale_rect.set_size(*args, smooth=smooth)
-        self.bg_rect.set_size(*args, smooth=smooth)
-
     def before_drawing(self, surface: pygame.Surface) -> None:
-        self.scale_rect.set_size(self.width * self.percent, self.height, smooth=False)
-        self.bg_rect.move(x=self.x, centery=self.centery)
-        self.scale_rect.move(x=self.x, centery=self.centery)
-        self.bg_rect.draw(surface)
-        self.scale_rect.draw(surface)
+        RectangleShape.before_drawing(self, surface)
+        self.__scale_rect.set_size(self.width * self.percent, self.height, smooth=False)
+        self.__bg_rect.set_size(self.size, smooth=False)
+        self.__bg_rect.move(x=self.x, centery=self.centery)
+        self.__scale_rect.move(x=self.x, centery=self.centery)
+        self.__bg_rect.draw(surface)
+        self.__scale_rect.draw(surface)
 
     def after_drawing(self, surface: pygame.Surface) -> None:
         RectangleShape.after_drawing(self, surface)

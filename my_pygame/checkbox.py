@@ -14,7 +14,7 @@ class CheckBox(Clickable, RectangleShape):
         RectangleShape.__init__(self, width, height, color, outline=outline, **kwargs)
         Clickable.__init__(self, master, self.change_value, state, highlight_color=highlight_color, hover_sound=hover_sound, on_click_sound=on_click_sound)
         self.__on_changed_value = callback
-        self.active_img = image
+        self.__active_img = image
         self.__on_value = on_value
         self.__off_value = off_value
         if on_value == off_value:
@@ -30,15 +30,15 @@ class CheckBox(Clickable, RectangleShape):
         if value not in [self.__on_value, self.__off_value]:
             return
         self.__value = value
-        if self.__on_changed_value:
+        if callable(self.__on_changed_value):
             self.__on_changed_value(self.__value)
 
     def after_drawing(self, surface: pygame.Surface) -> None:
         RectangleShape.after_drawing(self, surface)
         if self.value == self.__on_value:
-            if isinstance(self.active_img, Image):
-                self.active_img.center = self.center
-                self.active_img.draw(surface)
+            if isinstance(self.__active_img, Image):
+                self.__active_img.center = self.center
+                self.__active_img.draw(surface)
             else:
                 x, y = self.center
                 w, h = self.size
@@ -56,4 +56,4 @@ class CheckBox(Clickable, RectangleShape):
                 )
 
     def change_value(self):
-        self.value = not self.value
+        self.value = self.__on_value if self.value == self.__off_value else self.__off_value

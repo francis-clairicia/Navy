@@ -3,48 +3,67 @@
 import pygame
 from .drawable import Drawable
 
-class RectangleShape(Drawable):
+class Shape(Drawable):
 
-    def __init__(self, width: int, height: int, color: tuple, outline=0, outline_color=(0, 0, 0), **kwargs):
-        Drawable.__init__(self, pygame.Surface((int(width), int(height)), flags=pygame.SRCALPHA), **kwargs)
+    def __init__(self, surface: pygame.Surface, color: tuple, outline=0, outline_color=(0, 0, 0), **kwargs):
+        Drawable.__init__(self, surface=surface, **kwargs)
         self.color = color
         self.outline = outline
         self.outline_color = outline_color
+
+    @property
+    def color(self):
+        return self.__color
+
+    @color.setter
+    def color(self, value: tuple):
+        self.__color = tuple(value) if value is not None else (0, 0, 0, 0)
+
+    @property
+    def outline(self) -> int:
+        return self.__outline
+
+    @outline.setter
+    def outline(self, value: int) -> None:
+        self.__outline = int(value)
+        if self.__outline < 0:
+            self.__outline = 0
+
+    @property
+    def outline_color(self):
+        return self.__outline_color
+
+    @outline_color.setter
+    def outline_color(self, value: tuple):
+        self.__outline_color = tuple(value) if value is not None else (0, 0, 0, 0)
+
+class RectangleShape(Shape):
+
+    def __init__(self, width: int, height: int, color: tuple, outline=0, outline_color=(0, 0, 0), **kwargs):
+        Shape.__init__(self, pygame.Surface((int(width), int(height)), flags=pygame.SRCALPHA), color, outline, outline_color, **kwargs)
+
+    def before_drawing(self, surface: pygame.Surface) -> None:
+        self.fill(self.color)
 
     def after_drawing(self, surface: pygame.Surface) -> None:
         if self.outline > 0:
             pygame.draw.rect(surface, self.outline_color, self.rect, self.outline)
 
-    @property
-    def color(self):
-        return self.__color
-
-    @color.setter
-    def color(self, value: tuple):
-        self.fill(value)
-        self.__color = value
-
-class CircleShape(Drawable):
+class CircleShape(Shape):
     def __init__(self, radius: int, color: tuple, outline=0, outline_color=(0, 0, 0), **kwargs):
-        Drawable.__init__(self, **kwargs)
-        self.fill((0, 0, 0, 0))
+        Shape.__init__(self, pygame.Surface((abs(radius) * 2, abs(radius) * 2), flags=pygame.SRCALPHA), **kwargs)
         self.radius = radius
-        self.color = color
-        self.outline = outline
-        self.outline_color = outline_color
+
+    def before_drawing(self, surface: pygame.Surface) -> None:
+        new_image = pygame.Surface((self.radius * 2, self.radius * 2), flags=pygame.SRCALPHA)
+        new_image.fill((0, 0, 0, 0))
+        if self.color:
+            pygame.draw.circle(new_image, self.color, (self.radius, self.radius), self.radius)
+        self.image = new_image
 
     def after_drawing(self, surface: pygame.Surface) -> None:
         if self.outline > 0:
             pygame.draw.circle(surface, self.outline_color, self.center, self.radius, self.outline)
-
-    @property
-    def color(self):
-        return self.__color
-
-    @color.setter
-    def color(self, value: tuple):
-        self.__color = value
-        self.__update_surface()
 
     @property
     def radius(self) -> int:
@@ -53,14 +72,5 @@ class CircleShape(Drawable):
     @radius.setter
     def radius(self, value: int) -> None:
         self.__radius = int(value)
-        self.__update_surface()
-
-    def __update_surface(self):
-        try:
-            new_image = pygame.Surface((self.radius * 2, self.radius * 2), flags=pygame.SRCALPHA)
-            new_image.fill((0, 0, 0, 0))
-            if self.color:
-                pygame.draw.circle(new_image, self.color, (self.radius, self.radius), self.radius)
-            self.image = new_image
-        except AttributeError:
-            pass
+        if self.__radius < 0:
+            self.__radius = 0

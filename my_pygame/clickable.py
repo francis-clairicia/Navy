@@ -149,7 +149,7 @@ class Clickable(Focusable):
         if self.valid_click(event, down=True):
             self.active = True
             self.on_click_down(event)
-        else:
+        elif event.type == pygame.MOUSEBUTTONDOWN:
             self.focus_leave()
 
     def mouse_motion(self, mouse_pos: Tuple[int, int]) -> None:

@@ -16,69 +16,93 @@ class Button(Clickable, RectangleShape):
                  bg=(255, 255, 255), fg=(0, 0, 0),
                  hover_bg=(235, 235, 235), hover_fg=None, hover_sound=None,
                  active_bg=(128, 128, 128), active_fg=None, on_click_sound=None,
-                 disabled_bg=(128, 128, 128), disabled_fg=None, disabled_sound=None,
+                 disabled_bg=(128, 128, 128), disabled_fg=(0, 0, 0), disabled_sound=None,
                  disabled_hover_bg=None, disabled_hover_fg=None,
                  disabled_active_bg=None, disabled_active_fg=None,
                  highlight_color=(0, 0, 255),
                  **kwargs):
-        self.text = Text(text, font, fg, justify=Text.T_CENTER, img=img, compound=compound)
+        self.__text = Text(text, font, fg, justify=Text.T_CENTER, img=img, compound=compound)
         if not isinstance(size, (list, tuple)) or len(size) != 2:
-            size = (self.text.w + 20, self.text.h + 20)
+            size = (self.__text.w + 20, self.__text.h + 20)
         RectangleShape.__init__(self, *size, color=bg, outline=outline, outline_color=outline_color, **kwargs)
-        self.fg = fg
-        self.bg = bg
-        self.hover_fg = fg if hover_fg is None else hover_fg
-        self.hover_bg = bg if hover_bg is None else hover_bg
-        self.active_fg = fg if active_fg is None else active_fg
-        self.active_bg = bg if active_bg is None else active_bg
-        self.disabled_fg = fg if disabled_fg is None else disabled_fg
-        self.disabled_bg = bg if disabled_bg is None else disabled_bg
-        self.disabled_hover_bg = self.disabled_bg if disabled_hover_bg is None else disabled_hover_bg
-        self.disabled_hover_fg = self.disabled_fg if disabled_hover_fg is None else disabled_hover_fg
-        self.disabled_active_bg = self.disabled_bg if disabled_active_bg is None else disabled_active_bg
-        self.disabled_active_fg = self.disabled_fg if disabled_active_fg is None else disabled_active_fg
+        self.__bg = {
+            Clickable.NORMAL: {
+                "normal": bg,
+                "hover":  bg if hover_bg is None else hover_bg,
+                "active": bg if active_bg is None else active_bg
+            },
+            Clickable.DISABLED: {
+                "normal": disabled_bg,
+                "hover":  disabled_bg if disabled_hover_bg is None else disabled_hover_bg,
+                "active": disabled_bg if disabled_active_bg is None else disabled_active_bg
+            }
+        }
+        self.__fg = {
+            Clickable.NORMAL: {
+                "normal": fg,
+                "hover":  fg if hover_fg is None else hover_fg,
+                "active": fg if active_fg is None else active_fg,
+            },
+            Clickable.DISABLED: {
+                "normal": disabled_fg,
+                "hover":  disabled_fg if disabled_hover_fg is None else disabled_hover_fg,
+                "active": disabled_fg if disabled_active_fg is None else disabled_active_fg
+            }
+        }
         Clickable.__init__(self, master, callback, state, hover_sound, on_click_sound, disabled_sound, highlight_color=highlight_color)
 
-    def set_text(self, string: str) -> None:
-        self.text.message = string
-        self.set_size(self.text.w + 20, self.text.h + 20)
+    @classmethod
+    def withImageOnly(cls, master: Window, img: Image, **kwargs):
+        kwargs["compound"] = "center"
+        return cls(master, img=img, **kwargs)
 
-    def get_text(self) -> str:
-        return self.text.message
+    @property
+    def text(self) -> str:
+        return self.__text.message
 
-    def set_font(self, font) -> None:
-        self.text.font = font
-        self.set_size(self.text.w + 20, self.text.h + 20)
+    @text.setter
+    def text(self, string: str) -> None:
+        self.__text.message = string
+        self.set_size(self.__text.w + 20, self.__text.h + 20)
 
-    def get_font(self) -> Font:
-        return self.text.font
+    @property
+    def font(self) -> Font:
+        return self.__text.font
+
+    @font.setter
+    def font(self, font) -> None:
+        self.__text.font = font
+        self.set_size(self.__text.w + 20, self.__text.h + 20)
 
     @property
     def img(self):
-        return self.text.img
+        return self.__text.img
 
     @img.setter
     def img(self, img: Image):
-        self.text.img = img
-        self.set_size(self.text.w + 20, self.text.h + 20)
+        self.__text.img = img
+        self.set_size(self.__text.w + 20, self.__text.h + 20)
 
     def after_drawing(self, surface: pygame.Surface) -> None:
         RectangleShape.after_drawing(self, surface)
-        self.text.move(center=self.center)
-        self.text.draw(surface)
+        self.__text.move(center=self.center)
+        self.__text.draw(surface)
+
+    def __set_color(self, button_state: str) -> None:
+        self.color = self.__bg[self.state][button_state]
+        self.__text.color = self.__fg[self.state][button_state]
 
     def on_hover(self) -> None:
-        if self.state == Clickable.DISABLED:
-            bg = self.disabled_hover_bg if not self.active else self.disabled_active_bg
-            fg = self.disabled_hover_fg if not self.active else self.disabled_active_fg
-        else:
-            bg = self.hover_bg if not self.active else self.active_bg
-            fg = self.hover_fg if not self.active else self.active_fg
-        self.color = bg
-        self.text.color = fg
+        self.__set_color("hover")
 
     def on_leave(self) -> None:
-        self.set_default_colors()
+        self.__set_color("normal")
+
+    def on_active_set(self) -> None:
+        self.__set_color("active")
+
+    def on_active_unset(self) -> None:
+        self.__set_color("normal")
 
     def on_change_state(self) -> None:
         if self.hover:
@@ -86,70 +110,29 @@ class Button(Clickable, RectangleShape):
         elif self.active:
             self.on_active_set()
         else:
-            self.set_default_colors()
-
-    def set_default_colors(self):
-        if self.state == Clickable.DISABLED:
-            bg = self.disabled_bg
-            fg = self.disabled_fg
-        else:
-            bg = self.bg
-            fg = self.fg
-        self.color = bg
-        self.text.color = fg
-
-    def on_active_set(self) -> None:
-        if self.state == Clickable.DISABLED:
-            bg = self.disabled_active_bg
-            fg = self.disabled_active_fg
-        else:
-            bg = self.active_bg
-            fg = self.active_fg
-        self.color = bg
-        self.text.color = fg
-
-    def on_active_unset(self) -> None:
-        self.set_default_colors()
+            self.on_leave()
 
 class ImageButton(Button):
 
-    def __init__(self, master, img: pygame.Surface, hover_img: Optional[pygame.Surface] = None, active_img: Optional[pygame.Surface] = None, size=None, width=None, height=None, rotate=0, show_bg=False, offset=3, **kwargs):
+    def __init__(self, master: Window, img: pygame.Surface, hover_img: Optional[pygame.Surface] = None, active_img: Optional[pygame.Surface] = None, size=None, width=None, height=None, rotate=0, **kwargs):
+        kwargs["bg"] = kwargs["hover_bg"] = kwargs["active_bg"] = kwargs["disabled_bg"] = (0, 0, 0, 0)
+        kwargs["outline"] = 0
         Button.__init__(self, master, img=Image(img, size=size, width=width, height=height, rotate=rotate), compound="center", **kwargs)
-        self.default_img = self.img
-        self.hover_img = Image(hover_img, size=size, width=width, height=height, rotate=rotate) if isinstance(hover_img, pygame.Surface) else None
-        self.active_img = Image(active_img, size=size, width=width, height=height, rotate=rotate) if isinstance(active_img, pygame.Surface) else None
-        self.show_background(show_bg)
-        self.__offset = offset
-        self.offset = 0
-
-    def show_background(self, status: bool) -> None:
-        self.__show = bool(status)
-
-    def image_drawing_condition(self) -> bool:
-        return self.__show
-
-    def after_drawing(self, surface: pygame.Surface) -> None:
-        if self.__show:
-            RectangleShape.after_drawing(self, surface)
-        self.text.move(center=self.center)
-        self.text.move_ip(0, self.offset)
-        self.text.draw(surface)
+        self.__default_img = self.img
+        self.__hover_img = Image(hover_img, size=size, width=width, height=height, rotate=rotate) if isinstance(hover_img, pygame.Surface) else None
+        self.__active_img = Image(active_img, size=size, width=width, height=height, rotate=rotate) if isinstance(active_img, pygame.Surface) else None
 
     def on_hover(self):
-        Button.on_hover(self)
-        if self.active_img and self.active:
-            self.img = self.active_img
-        elif self.hover_img and self.hover:
-            self.img = self.hover_img
+        if self.__active_img and self.active:
+            self.img = self.__active_img
+        elif self.__hover_img and self.hover:
+            self.img = self.__hover_img
         else:
-            self.img = self.default_img
+            self.img = self.__default_img
 
     def on_active_set(self):
-        Button.on_active_set(self)
-        if self.active_img:
-            self.img = self.active_img
-        self.offset = self.__offset
+        if self.__active_img:
+            self.img = self.__active_img
 
     def on_active_unset(self):
-        self.img = self.default_img
-        self.offset = 0
+        self.img = self.__default_img

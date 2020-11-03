@@ -1,5 +1,6 @@
 # -*- coding: Utf-8 -*
 
+import os.path
 from typing import Tuple
 import pygame
 from pygame.font import Font, SysFont
@@ -99,7 +100,7 @@ class Text(Drawable):
     def create_font_object(font) -> Font:
         obj = None
         if isinstance(font, (tuple, list)):
-            if str(font[0]).endswith((".ttf", ".otf")):
+            if font[0] is not None and os.path.isfile(font[0]):
                 obj = Font(*font[0:2])
                 if "bold" in font:
                     obj.set_bold(True)
@@ -164,14 +165,15 @@ class Text(Drawable):
             render_lines.append(render)
         if render_lines:
             text = pygame.Surface(size, flags=pygame.SRCALPHA)
-            self.fill((0, 0, 0, 0))
+            text.fill((0, 0, 0, 0))
+            text_rect = text.get_rect()
             y = 0
             justify_parameters = {
-                Text.T_LEFT:    {"left": 0},
-                Text.T_RIGHT:   {"right": size[0]},
-                Text.T_CENTER:  {"centerx": size[0] // 2},
+                Text.T_LEFT:    {"left": text_rect.left},
+                Text.T_RIGHT:   {"right": text_rect.right},
+                Text.T_CENTER:  {"centerx": text_rect.centerx},
             }
-            params = justify_parameters.get(self.justify, dict())
+            params = justify_parameters[self.justify]
             for render in render_lines:
                 text.blit(render, render.get_rect(**params, y=y))
                 y += render.get_height()
@@ -187,7 +189,7 @@ class Text(Drawable):
             }
             size = {"width": 0, "height": 0}
             for field in size:
-                size[field] = function_to_get_size[self.compound][field](getattr(obj, field) for obj in [text.get_rect(), self.img])
+                size[field] = function_to_get_size[self.compound][field](getattr(obj, field) for obj in [text.get_rect(), self.img.rect])
             w = size["width"] + 5
             h = size["height"]
             surface_to_draw = pygame.Surface((w, h), flags=pygame.SRCALPHA)
@@ -206,9 +208,9 @@ class Text(Drawable):
                 "bottom": {"bottom": rect_to_draw.bottom, "centerx": rect_to_draw.centerx},
                 "center": {"center": rect_to_draw.center}
             }
-            surface_to_draw.blit(text, text.get_rect(**move_text[self.compound]))
             self.img.move(**move_img[self.compound])
             self.img.draw(surface_to_draw)
+            surface_to_draw.blit(text, text.get_rect(**move_text[self.compound]))
             self.image = surface_to_draw
         else:
             self.image = text

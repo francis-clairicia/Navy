@@ -34,7 +34,6 @@ options = {
     "includes": [
         application,
         "pygame",
-        "my_pygame",
         "my_pygame"
     ],
     "excludes": [],

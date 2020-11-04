@@ -42,24 +42,20 @@ class PlayerServer(Window):
             "outline": 3,
             "highlight_color": YELLOW
         }
-        self.ip = socket.gethostbyname(socket.gethostname())
         self.port = 12800
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.bind(("", self.port))
-        self.socket.listen(1)
         self.frame = RectangleShape(0.5 * self.width, 0.5 * self.height, GREEN_DARK, outline=5)
         self.text_title = Text("Waiting for Player 2", ("calibri", 50))
-        self.text_ip_address = Text(f"IP address: {self.ip}", ("calibri", 40))
+        self.text_ip_address = Text(f"IP address: {self.server_socket.ip}", ("calibri", 40))
         self.text_port_of_connection = Text(f"Port: {self.port}", ("calibri", 40))
         self.button_cancel = Button(self, "Return to menu", callback=self.stop, **params_for_all_buttons)
         self.lets_play_countdown = CountDown(self, 3, "Player 2 connected.\nGame start in {seconds} seconds", font=("calibri", 35), color=YELLOW, justify="center")
 
     def on_start_loop(self):
-        self.check_incoming_connections()
+        self.create_server(self.port, 1)
 
     def on_quit(self):
-        if self.socket is not None:
-            self.socket.close()
+        self.server_socket.stop()
+        self.client_socket.stop()
 
     def place_objects(self):
         self.frame.move(center=self.center)
@@ -69,25 +65,15 @@ class PlayerServer(Window):
         self.text_port_of_connection.move(centerx=self.text_ip_address.centerx, top=self.text_ip_address.bottom + 20)
         self.button_cancel.move(centerx=self.frame.centerx, bottom=self.frame.bottom - 10)
 
-    def check_incoming_connections(self):
-        socket_player = None
-        try:
-            connections = select.select([self.socket], [], [], 0.05)[0]
-            if connections:
-                socket_player = connections[0].accept()[0]
-                self.socket.close()
-                self.socket = None
-                self.text_title.hide()
-                self.button_cancel.state = Button.DISABLED
-                self.lets_play_countdown.start(at_end=lambda: self.play(socket_player))
-        except (socket.error, ValueError, TypeError, OSError):
-            pass
-        else:
-            if not isinstance(socket_player, socket.socket):
-                self.after(10, self.check_incoming_connections)
+    def update(self) -> None:
+        if len(self.server_socket.clients) > 1 and not self.lets_play_countdown.started():
+            self.server_socket.listen = 0
+            self.text_title.hide()
+            self.button_cancel.state = Button.DISABLED
+            self.lets_play_countdown.start(at_end=self.play)
 
-    def play(self, socket_player: socket.socket):
-        NavySetup(socket_player, 1).mainloop()
+    def play(self):
+        NavySetup(1).mainloop()
         self.stop()
 
 class PlayerClient(Window):
@@ -115,6 +101,7 @@ class PlayerClient(Window):
 
     def on_quit(self):
         self.disable_text_input()
+        self.client_socket.stop()
 
     def place_objects(self):
         self.frame.move(center=self.center)
@@ -132,22 +119,17 @@ class PlayerClient(Window):
         self.text_connection.show()
         self.text_connection.message = "Connection..."
         self.draw_and_refresh()
-        try:
-            socket_player = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            socket_player.settimeout(3)
-            socket_player.connect((self.ip.get(), int(self.port.get())))
-        except (socket.error, OverflowError, ValueError):
+        if not self.connect_to_server(self.ip.get(), int(self.port.get()), 3):
             self.text_connection.message = "Connection failed. Try again."
         else:
-            socket_player.settimeout(None)
             self.text_connection.hide()
             self.text_title.hide()
             self.button_connect.state = self.button_cancel.state = Button.DISABLED
             self.button_connect.focus_leave()
-            self.lets_play_countdown.start(at_end=lambda: self.play(socket_player))
+            self.lets_play_countdown.start(at_end=self.play)
 
-    def play(self, socket_player: socket.socket):
-        NavySetup(socket_player, 2).mainloop()
+    def play(self):
+        NavySetup(2).mainloop()
         self.stop()
 
 class Options(Dialog):
@@ -245,17 +227,16 @@ class NavyWindow(Window):
         self.show_all()
 
     def single_player(self):
-        setup = NavySetup(None, 1)
+        setup = NavySetup(1)
         setup.mainloop()
 
     def multiplayer_menu(self, player_class: Type[Union[PlayerServer, PlayerClient]]) -> None:
         self.hide_all(without=[self.bg, self.logo])
         try:
             player = player_class(self)
+            player.mainloop()
         except OSError:
             pass
-        else:
-            player.mainloop()
         self.show_all()
 
 if __name__ == "__main__":

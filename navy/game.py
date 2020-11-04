@@ -10,8 +10,8 @@ from typing import Sequence, Dict, Any, Tuple, Union
 from my_pygame import Window, DrawableList, DrawableListHorizontal, DrawableListVertical
 from my_pygame import Image, ImageButton, Text, RectangleShape, Button, Sprite
 from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, BLACK, WHITE, YELLOW, TRANSPARENT, RED, RED_DARK
+from my_pygame import ClientSocket
 from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
-from .player import Player
 
 class Box(Button):
     def __init__(self, master, navy, size: Tuple[int, int], pos: Tuple[int, int]):
@@ -145,12 +145,14 @@ class Navy(DrawableListVertical):
     def box_hit(self, box: Box) -> bool:
         return False
 
-    def set_box_hit(self, box: Box, img: str):
+    def set_box_hit(self, box: Box, hit: bool) -> None:
         box.state = Button.DISABLED
+        hit = bool(hit)
+        img = {False: "hatch", True: "cross"}[hit]
         image = Image(RESOURCES.IMG[img], size=box.size)
         image.center = box.center
         self.box_hit_img.add(image)
-        self.map[box.pos] = {"hatch": Navy.BOX_HATCH, "cross": Navy.BOX_CROSS}[img]
+        self.map[box.pos] = {False: Navy.BOX_HATCH, True: Navy.BOX_CROSS}[hit]
 
     def hit_all_boxes_around_ship(self, ship: Ship):
         offsets = [
@@ -171,43 +173,47 @@ class Navy(DrawableListVertical):
                 if box is None:
                     continue
                 if box.state == Button.NORMAL:
-                    self.set_box_hit(box, "hatch")
+                    self.set_box_hit(box, False)
 
 class PlayerNavy(Navy):
-    def __init__(self, master, player: Player, setup: Sequence[Dict[str, Any]]):
+    def __init__(self, master, player: ClientSocket, setup: Sequence[Dict[str, Any]]):
         Navy.__init__(self, master, setup)
         self.set_box_clickable(False)
-        self.player = player
+        self.client_socket = player
 
     def box_hit(self, box: Box) -> bool:
+        attack_result = {
+            "hit": False,
+            "ship_destroyed": None
+        }
         for ship in self.ships:
             if box in ship.boxes_covered:
-                self.set_box_hit(box, "cross")
+                self.set_box_hit(box, True)
+                attack_result["hit"] = True
                 if ship.destroyed():
                     RESOURCES.play_sfx("destroy")
                     self.hit_all_boxes_around_ship(ship)
-                    self.player.send("ship_destroyed", json.dumps(ship.get_setup()))
+                    attack_result["ship_destroyed"] = ship.get_setup()
                 else:
-                    self.player.send("attack_success")
                     RESOURCES.play_sfx("explosion")
+                self.client_socket.send("attack_result", attack_result)
                 return True
-        self.player.send("attack_failed")
+        self.client_socket.send("attack_result", attack_result)
         RESOURCES.play_sfx("splash")
-        self.set_box_hit(box, "hatch")
+        self.set_box_hit(box, False)
         return False
 
     def send_non_destroyed_ships(self):
-        if self.player.connected():
-            self.player.send("non_destroyed_ships", json.dumps([ship.get_setup() for ship in filter(lambda ship: not ship.destroyed(), self.ships)]))
+        self.client_socket.send("non_destroyed_ships", [ship.get_setup() for ship in filter(lambda ship: not ship.destroyed(), self.ships)])
 
 class OppositeNavy(Navy):
-    def __init__(self, master, player: Player, ai_setup: Sequence[Dict[str, Any]]):
+    def __init__(self, master, player: ClientSocket, ai_setup: Sequence[Dict[str, Any]]):
         Navy.__init__(self, master, list())
-        self.player = player
+        self.client_socket = player
         self.ai_setup = ai_setup
 
     def box_hit(self, box: Box) -> bool:
-        if not self.player.connected():
+        if not self.client_socket.connected():
             return self.ai_box_hit(box)
         return self.player_box_hit(box)
 
@@ -215,7 +221,7 @@ class OppositeNavy(Navy):
         for ship_infos in self.ai_setup.copy():
             boxes_covered = list(filter(lambda box: box.pos in ship_infos["boxes"], self.boxes))
             if box in boxes_covered:
-                self.set_box_hit(box, "cross")
+                self.set_box_hit(box, True)
                 if all(box.state == Button.DISABLED for box in boxes_covered):
                     RESOURCES.play_sfx("destroy")
                     ship = Ship(**ship_infos)
@@ -225,37 +231,35 @@ class OppositeNavy(Navy):
                 else:
                     RESOURCES.play_sfx("explosion")
                 return True
-        self.set_box_hit(box, "hatch")
+        self.set_box_hit(box, False)
         RESOURCES.play_sfx("splash")
         return False
 
     def player_box_hit(self, box: Box) -> bool:
-        self.player.send("attack", json.dumps(box.pos))
-        result, value = self.player.wait_for("attack_success", "attack_failed", "ship_destroyed")
-        if result in ["attack_success", "ship_destroyed"]:
-            self.set_box_hit(box, "cross")
-            if result == "ship_destroyed":
-                try:
-                    ship_infos = json.loads(value)
-                except json.JSONDecodeError:
-                    pass
-                else:
-                    RESOURCES.play_sfx("destroy")
-                    ship = Ship(**ship_infos)
-                    self.add_ship(ship)
-                    self.hit_all_boxes_around_ship(ship)
+        self.client_socket.send("attack", json.dumps(box.pos))
+        attack_result = self.client_socket.get(self.client_socket.wait_for("attack_result"))
+        if not isinstance(attack_result, dict):
+            return False
+        if attack_result["hit"]:
+            self.set_box_hit(box, True)
+            if attack_result["ship_destroyed"] is not None:
+                ship_infos = attack_result["ship_destroyed"]
+                RESOURCES.play_sfx("destroy")
+                ship = Ship(**ship_infos)
+                self.add_ship(ship)
+                self.hit_all_boxes_around_ship(ship)
             else:
                 RESOURCES.play_sfx("explosion")
             return True
-        self.set_box_hit(box, "hatch")
+        self.set_box_hit(box, False)
         RESOURCES.play_sfx("splash")
         return False
 
     def show_all_non_destroyed_ships(self) -> Sequence[Ship]:
-        if not self.player.connected():
+        if not self.client_socket.connected():
             ship_setup = self.ai_setup
         else:
-            ship_setup = json.loads(self.player.wait_for("non_destroyed_ships")[1])
+            ship_setup = self.client_socket.get(self.client_socket.wait_for("non_destroyed_ships"))
         all_ships = list()
         for ship_infos in ship_setup:
             ship = Ship(**ship_infos)
@@ -360,10 +364,10 @@ class FinishWindow(Window):
 
     def update(self):
         if self.ask_restart:
-            if self.master.player.recv("restart"):
+            if self.master.client_socket.recv("restart"):
                 self.master.restart = True
                 self.stop()
-            elif self.master.player.recv("quit"):
+            elif self.master.client_socket.recv("quit"):
                 self.text_finish.message = "The enemy has left\nthe game"
 
     def place_objects(self):
@@ -377,9 +381,9 @@ class FinishWindow(Window):
             self.button_return_to_menu.move(bottom=self.frame.bottom - 20, centerx=self.frame.centerx)
 
     def restart(self):
-        if self.master.player.connected():
+        if self.master.client_socket.connected():
             self.ask_restart = True
-            self.master.player.send("restart")
+            self.master.client_socket.send("restart")
             self.text_finish.message = "Waiting for\nenemy response"
             self.button_restart.hide()
             self.button_return_to_menu.move(bottom=self.frame.bottom - 20, centerx=self.frame.centerx)
@@ -388,14 +392,14 @@ class FinishWindow(Window):
             self.stop()
 
 class Gameplay(Window):
-    def __init__(self, player: Player, navy_setup: Sequence[Dict[str, Any]], ai_setup=None):
+    def __init__(self, player: int, navy_setup: Sequence[Dict[str, Any]], ai_setup=None):
         Window.__init__(self, bg_color=(0, 200, 255), bg_music=RESOURCES.MUSIC["gameplay"])
-        self.player = player
+        self.player_id = player
         self.button_back = ImageButton(self, RESOURCES.IMG["arrow_blue"], rotate=180, size=50, callback=self.stop, highlight_color=YELLOW)
-        self.player_grid = PlayerNavy(self, player, navy_setup)
-        self.opposite_grid = OppositeNavy(self, player, ai_setup or list())
-        self.ai = AI() if not player.connected() else None
-        self.turn_checker = TurnArrow(self.player.get_default_turn())
+        self.player_grid = PlayerNavy(self, self.client_socket, navy_setup)
+        self.opposite_grid = OppositeNavy(self, self.client_socket, ai_setup or list())
+        self.ai = AI() if not self.client_socket.connected() else None
+        self.turn_checker = TurnArrow(self.get_default_turn())
         self.restart = False
         self.bind_key(pygame.K_ESCAPE, lambda event: self.stop())
         self.text_finish = Text("Finish !!!", font=(None, 120), color=WHITE)
@@ -415,11 +419,23 @@ class Gameplay(Window):
             self.player_grid.send_non_destroyed_ships()
             self.after(3000, lambda victory=True: self.finish(victory))
             self.game_finished = True
-        elif self.player.connected():
-            if self.player.recv("attack"):
-                self.hit_a_box(self.player_grid, json.loads(self.player.get()))
-            elif self.player.recv("quit"):
+        elif self.client_socket.connected():
+            if self.client_socket.recv("attack"):
+                self.hit_a_box(self.player_grid, json.loads(self.client_socket.get("attack")))
+            elif self.client_socket.recv("quit"):
                 self.finish(None)
+
+    def get_default_turn(self) -> bool:
+        if not self.client_socket.connected():
+            return True
+        if self.player_id == 1:
+            my_turn = random.choice([True, False])
+            self.client_socket.send("turn", not my_turn)
+            return my_turn
+        result = self.client_socket.wait_for("turn")
+        if result == "quit":
+            return False
+        return bool(self.client_socket.get("turn"))
 
     def finish(self, victory: bool):
         FinishWindow(self, victory).mainloop()

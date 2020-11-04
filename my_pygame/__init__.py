@@ -24,3 +24,4 @@ from .dialog import Dialog
 from .path import set_constant_file, set_constant_directory
 from .resources import RESOURCES
 from .thread import threaded_function
+from .multiplayer import ServerSocket, ClientSocket

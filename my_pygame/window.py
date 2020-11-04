@@ -14,6 +14,7 @@ from .joystick import Joystick
 from .keyboard import Keyboard
 from .clock import Clock
 from .resources import RESOURCES
+from .multiplayer import ServerSocket, ClientSocket
 
 CONFIG_FILE = os.path.join(sys.path[0], "window.conf")
 
@@ -51,6 +52,8 @@ class Window(object):
     __all_window_event_handler_dict = dict()
     __keyboard = Keyboard()
     __all_window_key_enabled = True
+    __server_socket = ServerSocket()
+    __client_socket = ClientSocket()
 
     def __init__(self, master=None, size=(0, 0), flags=0, bg_color=(0, 0, 0), bg_music=None):
         Window.init_pygame(size, flags)
@@ -204,6 +207,8 @@ class Window(object):
         if self.main_window or force is True:
             for window in filter(lambda win: win != self, Window.__all_opened):
                 window.on_quit()
+            Window.__server_socket.stop()
+            Window.__client_socket.stop()
             Window.save_config()
             pygame.quit()
             sys.exit(0)
@@ -513,6 +518,28 @@ class Window(object):
             pygame.key.set_repeat(*Window.__default_key_repeat)
             Window.__default_key_repeat = (0, 0)
             Window.__text_input_enabled = False
+
+    @staticmethod
+    def create_server(port: int, listen: int) -> bool:
+        Window.__server_socket = ServerSocket()
+        Window.__server_socket.bind(port, listen)
+        if not Window.__server_socket.connected():
+            raise OSError
+        return Window.connect_to_server("localhost", port, None)
+
+    @staticmethod
+    def connect_to_server(address: str, port: int, timeout: int) -> bool:
+        Window.__client_socket.stop()
+        Window.__client_socket = ClientSocket()
+        return Window.__client_socket.connect(address, port, timeout)
+
+    @property
+    def server_socket(self) -> ServerSocket:
+        return Window.__server_socket
+
+    @property
+    def client_socket(self) -> ClientSocket:
+        return Window.__client_socket
 
     surface = property(lambda self: pygame.display.get_surface())
     rect = property(lambda self: self.surface.get_rect())

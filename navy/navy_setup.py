@@ -12,7 +12,6 @@ from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, WHITE, YELLOW, RED, TRANSP
 from my_pygame import CountDown
 from my_pygame.vector import Vector2
 from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
-from .player import Player
 from .game import Gameplay
 
 class BoxSetup(Button):
@@ -175,9 +174,9 @@ class WaitEnemy(Window):
         self.text = Text("Waiting for enemy", font=(None, 70))
 
     def update(self):
-        if self.master.player.recv("ready"):
+        if self.master.client_socket.recv("ready"):
             self.stop()
-        elif self.master.player.recv("quit"):
+        elif self.master.client_socket.recv("quit"):
             self.stop()
             EnemyQuitGame(self.master).mainloop()
             self.master.stop()
@@ -187,11 +186,11 @@ class WaitEnemy(Window):
         self.text.center = self.frame.center
 
 class NavySetup(Window):
-    def __init__(self, player_socket: socket.socket, player_id: int):
+    def __init__(self, player_id: int):
         Window.__init__(self, bg_color=(0, 200, 255), bg_music=RESOURCES.MUSIC["setup"])
-        self.player = Player(player_socket, player_id)
+        self.player_id = player_id
         self.count_down = CountDown(self, 60, "Time left: {seconds}", font=(None, 70), color=WHITE)
-        self.start_count_down = lambda: self.count_down.start(at_end=self.timeout) if self.player.connected() else None
+        self.start_count_down = lambda: self.count_down.start(at_end=self.timeout) if self.client_socket.connected() else None
         self.start_count_down()
         params_for_all_buttons = {
             "bg": GREEN,
@@ -231,12 +230,6 @@ class NavySetup(Window):
     def boxes(self) -> Sequence[BoxSetup]:
         return self.navy_grid.drawable
 
-    def on_start_loop(self):
-        self.player.start()
-
-    def on_quit(self):
-        self.player.stop()
-
     def place_objects(self) -> None:
         self.button_back.move(x=20, y=20)
         self.count_down.move(top=20, right=self.right - 20)
@@ -250,7 +243,7 @@ class NavySetup(Window):
 
     def update(self):
         self.button_play.state = Button.NORMAL if all(ship.on_map for ship in self.ships) else Button.DISABLED
-        if self.player.recv("quit"):
+        if self.client_socket.recv("quit"):
             self.count_down.stop()
             EnemyQuitGame(self).mainloop()
             self.stop()
@@ -273,18 +266,18 @@ class NavySetup(Window):
     def play(self):
         if not all(ship.on_map for ship in self.ships):
             return
-        if not self.player.connected():
-            ai_navy_setup = NavySetup(None, 2)
+        if not self.client_socket.connected():
+            ai_navy_setup = NavySetup(2)
             ai_navy_setup.shuffle()
             ai_setup = ai_navy_setup.create_setup()
         else:
             ai_setup = None
             self.count_down.stop()
-            self.player.send("ready")
+            self.client_socket.send("ready")
             WaitEnemy(self).mainloop()
             if not self.loop:
                 return
-        gameplay = Gameplay(self.player, self.create_setup(), ai_setup=ai_setup)
+        gameplay = Gameplay(self.player_id, self.create_setup(), ai_setup=ai_setup)
         gameplay.mainloop()
         if gameplay.restart:
             self.reinit_all_ships()

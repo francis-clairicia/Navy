@@ -477,9 +477,9 @@ class Window(object):
     def load_config():
         config = configparser.ConfigParser()
         config.read(CONFIG_FILE)
-        Window.set_music_volume(config.getfloat("MUSIC", "volume", fallback=0) / 100)
+        Window.set_music_volume(config.getfloat("MUSIC", "volume", fallback=50) / 100)
         Window.set_music_state(config.getboolean("MUSIC", "enable", fallback=True))
-        Window.set_sound_volume(config.getfloat("SFX", "volume", fallback=0) / 100)
+        Window.set_sound_volume(config.getfloat("SFX", "volume", fallback=50) / 100)
         Window.set_sound_state(config.getboolean("SFX", "enable", fallback=True))
         Window.show_fps(config.getboolean("FPS", "show", fallback=False))
 

@@ -6,8 +6,8 @@ from functools import wraps
 def threaded_function(function):
 
     @wraps(function)
-    def wrapper(*args, **kwargs):
-        thread = Thread(target=function, name=function.__name__, args=args, kwargs=kwargs, daemon=True)
+    def wrapper(*args, **kwargs) -> Thread:
+        thread = Thread(target=function, args=args, kwargs=kwargs, daemon=True)
         thread.start()
         return thread
     

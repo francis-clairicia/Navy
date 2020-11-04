@@ -15,6 +15,7 @@ class CountDown(Text):
         self.__started = False
         self.__master = master
         self.__callback = None
+        self.__window_callback = None
         self.__format = format
         self.hide()
 
@@ -29,6 +30,7 @@ class CountDown(Text):
 
     def stop(self) -> None:
         self.__started = False
+        self.__master.remove_window_callback(self.__window_callback)
 
     def started(self) -> bool:
         return self.__started
@@ -38,7 +40,7 @@ class CountDown(Text):
             return
         if self.__time > 0:
             self.message = self.__format.format(seconds=self.__time)
-            self.__master.after(1000, self.__update_count)
+            self.__window_callback = self.__master.after(1000, self.__update_count)
             self.__time -= 1
         else:
             self.__end()

@@ -3,7 +3,7 @@
 import os
 import sys
 import configparser
-from typing import Callable, Any, Union, Optional, Type, Sequence
+from typing import Callable, Any, Union, Optional, Type, Sequence, Tuple
 import pygame
 from .drawable import Drawable
 from .focusable import Focusable
@@ -207,8 +207,7 @@ class Window(object):
         if self.main_window or force is True:
             for window in filter(lambda win: win != self, Window.__all_opened):
                 window.on_quit()
-            Window.__server_socket.stop()
-            Window.__client_socket.stop()
+            Window.stop_connection()
             Window.save_config()
             pygame.quit()
             sys.exit(0)
@@ -351,8 +350,14 @@ class Window(object):
         else:
             Focusable.MODE = Focusable.MODE_MOUSE
 
-    def after(self, milliseconds: float, callback: Callable[..., Any]):
-        self.__callback_after.append(WindowCallback(callback, milliseconds))
+    def after(self, milliseconds: float, callback: Callable[..., Any]) -> WindowCallback:
+        window_callback = WindowCallback(callback, milliseconds)
+        self.__callback_after.append(window_callback)
+        return window_callback
+
+    def remove_window_callback(self, window_callback: WindowCallback) -> None:
+        if window_callback in self.__callback_after:
+            self.__callback_after.remove(window_callback)
 
     def bind_event(self, event_type, callback):
         event_list = self.__event_handler_dict.get(event_type)
@@ -520,26 +525,38 @@ class Window(object):
             Window.__text_input_enabled = False
 
     @staticmethod
-    def create_server(port: int, listen: int) -> bool:
-        Window.__server_socket = ServerSocket()
-        Window.__server_socket.bind(port, listen)
+    def create_server(port: int, listen: int) -> Tuple[str, int]:
+        Window.__server_socket.bind(port, 1)
         if not Window.__server_socket.connected():
             raise OSError
-        return Window.connect_to_server("localhost", port, None)
+        Window.connect_to_server("localhost", port, None)
+        Window.__server_socket.listen = listen
+        return Window.get_server_infos()
 
     @staticmethod
     def connect_to_server(address: str, port: int, timeout: int) -> bool:
-        Window.__client_socket.stop()
-        Window.__client_socket = ClientSocket()
         return Window.__client_socket.connect(address, port, timeout)
 
-    @property
-    def server_socket(self) -> ServerSocket:
-        return Window.__server_socket
+    @staticmethod
+    def stop_connection() -> None:
+        Window.__client_socket.stop()
+        Window.__server_socket.stop()
 
     @property
     def client_socket(self) -> ClientSocket:
         return Window.__client_socket
+
+    @staticmethod
+    def get_server_infos() -> Tuple[str, int]:
+        return (Window.__server_socket.ip, Window.__server_socket.port)
+
+    @staticmethod
+    def get_server_clients_count() -> int:
+        return len(Window.__server_socket.clients)
+
+    @staticmethod
+    def set_server_listen(listen: int) -> None:
+        Window.__server_socket.listen = listen
 
     surface = property(lambda self: pygame.display.get_surface())
     rect = property(lambda self: self.surface.get_rect())

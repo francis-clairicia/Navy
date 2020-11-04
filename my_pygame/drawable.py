@@ -210,7 +210,6 @@ class Drawable(Sprite):
 
     def set_size(self, *size: Union[int, Tuple[int, int]], smooth=True) -> None:
         size = size if len(size) == 2 else size[0]
-        # size = round(size[0]), round(size[1])
         try:
             self.image = self.resize_surface(self.image, size=size, smooth=smooth)
         except pygame.error:

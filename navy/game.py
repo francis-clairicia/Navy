@@ -11,7 +11,15 @@ from my_pygame import Window, DrawableList, DrawableListHorizontal, DrawableList
 from my_pygame import Image, ImageButton, Text, RectangleShape, Button, Sprite
 from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, BLACK, WHITE, YELLOW, TRANSPARENT, RED, RED_DARK
 from my_pygame import ClientSocket
-from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
+from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE, NB_SHIPS
+
+def print_navy_map(navy_map: Dict[Tuple[int, int], int], higlight_box=None) -> None:
+    navy_list = [[0 for _ in range(NB_COLUMNS_BOXES)] for _ in range(NB_LINES_BOXES)]
+    for (l, c), value in navy_map.items():
+        navy_list[l][c] = value if higlight_box is None or (l, c) != tuple(higlight_box) else f"({value})"
+    for line in navy_list:
+        print(line)
+    print("-" * NB_COLUMNS_BOXES)
 
 class Box(Button):
     def __init__(self, master, navy, size: Tuple[int, int], pos: Tuple[int, int]):
@@ -29,6 +37,11 @@ class Box(Button):
         Button.__init__(self, master=master, callback=lambda: master.hit_a_box(navy, self), **params)
         self.pos = pos
 
+    def reset(self) -> None:
+        self.state = Button.NORMAL
+        self.hover = False
+        self.focus_leave()
+
 class Ship(Image):
 
     VERTICAL = "vertical"
@@ -44,7 +57,7 @@ class Ship(Image):
         self.orient = orient
         self.__boxes_covered = list()
 
-    def get_setup(self) -> Dict[str, Dict[str, Any]]:
+    def get_setup(self) -> Dict[str, Any]:
         return {"name": self.name, "boxes": self.boxes_pos, "orient": self.orient}
 
     @property
@@ -89,21 +102,37 @@ class Navy(DrawableListVertical):
     BOX_CROSS = 2
     BOX_SHIP_DESTROYED = 3
 
-    def __init__(self, master, setup: Sequence[Dict[str, Any]]):
+    def __init__(self, master):
         DrawableListVertical.__init__(self, offset=0, bg_color=(0, 157, 255))
         self.master = master
-        self.map = dict()
         for i in range(NB_LINES_BOXES):
             box_line = DrawableListHorizontal(offset=0)
             for j in range(NB_COLUMNS_BOXES):
                 box = Box(master, navy=self, size=BOX_SIZE, pos=(i, j))
                 box_line.add(box)
-                self.map[(i, j)] = Navy.BOX_NO_HIT
             self.add(box_line)
         self.ships_list = DrawableList()
         self.box_hit_img = DrawableList()
+
+    def load_setup(self, setup: Sequence[Dict[str, Any]]) -> None:
         for ship_infos in setup:
             self.add_ship(Ship(**ship_infos))
+
+    def reset(self) -> None:
+        self.ships_list.clear()
+        self.box_hit_img.clear()
+        for box in self.boxes:
+            box.reset()
+
+    @property
+    def map(self) -> Dict[Tuple[int, int], int]:
+        navy_map = {box.pos: Navy.BOX_NO_HIT if box.state == Button.NORMAL else Navy.BOX_HATCH for box in self.boxes}
+        for box_pos in filter(lambda pos: navy_map[pos] == Navy.BOX_HATCH, navy_map):
+            for ship in self.ships:
+                if box_pos in ship.boxes_pos:
+                    navy_map[box_pos] = Navy.BOX_SHIP_DESTROYED if ship.destroyed() else Navy.BOX_CROSS
+                    break
+        return navy_map
 
     def after_drawing(self, surface: pygame.Surface) -> None:
         self.ships_list.draw(surface)
@@ -127,7 +156,7 @@ class Navy(DrawableListVertical):
             box.hover = False
 
     def destroyed(self) -> bool:
-        return len(self.ships) == 10 and all(ship.destroyed() for ship in self.ships)
+        return len(self.ships) == NB_SHIPS and all(ship.destroyed() for ship in self.ships)
 
     @property
     def boxes(self) -> Sequence[Box]:
@@ -152,7 +181,6 @@ class Navy(DrawableListVertical):
         image = Image(RESOURCES.IMG[img], size=box.size)
         image.center = box.center
         self.box_hit_img.add(image)
-        self.map[box.pos] = {False: Navy.BOX_HATCH, True: Navy.BOX_CROSS}[hit]
 
     def hit_all_boxes_around_ship(self, ship: Ship):
         offsets = [
@@ -167,7 +195,6 @@ class Navy(DrawableListVertical):
         ]
         for box in ship.boxes_covered:
             line, column = box.pos
-            self.map[box.pos] = Navy.BOX_SHIP_DESTROYED
             for u, v in offsets:
                 box = self.get_box(line + u, column + v)
                 if box is None:
@@ -176,8 +203,8 @@ class Navy(DrawableListVertical):
                     self.set_box_hit(box, False)
 
 class PlayerNavy(Navy):
-    def __init__(self, master, player: ClientSocket, setup: Sequence[Dict[str, Any]]):
-        Navy.__init__(self, master, setup)
+    def __init__(self, master, player: ClientSocket):
+        Navy.__init__(self, master)
         self.set_box_clickable(False)
         self.client_socket = player
 
@@ -207,10 +234,10 @@ class PlayerNavy(Navy):
         self.client_socket.send("non_destroyed_ships", [ship.get_setup() for ship in filter(lambda ship: not ship.destroyed(), self.ships)])
 
 class OppositeNavy(Navy):
-    def __init__(self, master, player: ClientSocket, ai_setup: Sequence[Dict[str, Any]]):
-        Navy.__init__(self, master, list())
+    def __init__(self, master, player: ClientSocket):
+        Navy.__init__(self, master)
         self.client_socket = player
-        self.ai_setup = ai_setup
+        self.ai_setup = list()
 
     def box_hit(self, box: Box) -> bool:
         if not self.client_socket.connected():
@@ -271,12 +298,11 @@ class OppositeNavy(Navy):
         return all_ships
 
 class TurnArrow(Sprite):
-    def __init__(self, default: bool, **kwargs):
+    def __init__(self, **kwargs):
         Sprite.__init__(self)
         self.__turn = True
         self.add_sprite(True, RESOURCES.IMG["green_triangle"], **kwargs)
         self.add_sprite(False, RESOURCES.IMG["red_triangle"], **kwargs)
-        self.turn = default
 
     @property
     def turn(self) -> bool:
@@ -329,11 +355,7 @@ class AI:
             if pos in navy_map and navy_map[pos] == Navy.BOX_NO_HIT:
                 potential_boxes.append(pos)
         if not potential_boxes:
-            navy_list = [[0 for _ in range(NB_COLUMNS_BOXES)] for _ in range(NB_LINES_BOXES)]
-            for (l, c), value in navy_map.items():
-                navy_list[l][c] = value if (l, c) != (line, column) else f"({value})"
-            for line in navy_list:
-                print(line)
+            print_navy_map(navy_map, higlight_box=(line, column))
             print(f"IndexError: {e}")
             exit(1)
         return random.choice(potential_boxes)
@@ -392,18 +414,30 @@ class FinishWindow(Window):
             self.stop()
 
 class Gameplay(Window):
-    def __init__(self, player: int, navy_setup: Sequence[Dict[str, Any]], ai_setup=None):
+    def __init__(self, player: int):
         Window.__init__(self, bg_color=(0, 200, 255), bg_music=RESOURCES.MUSIC["gameplay"])
         self.player_id = player
         self.button_back = ImageButton(self, RESOURCES.IMG["arrow_blue"], rotate=180, size=50, callback=self.stop, highlight_color=YELLOW)
-        self.player_grid = PlayerNavy(self, self.client_socket, navy_setup)
-        self.opposite_grid = OppositeNavy(self, self.client_socket, ai_setup or list())
-        self.ai = AI() if not self.client_socket.connected() else None
-        self.turn_checker = TurnArrow(self.get_default_turn())
+        self.player_grid = PlayerNavy(self, self.client_socket)
+        self.opposite_grid = OppositeNavy(self, self.client_socket)
+        self.ai = AI()
+        self.turn_checker = TurnArrow()
         self.restart = False
         self.bind_key(pygame.K_ESCAPE, lambda event: self.stop())
         self.text_finish = Text("Finish !!!", font=(None, 120), color=WHITE)
         self.game_finished = False
+
+    def start(self, navy_setup: Sequence[Dict[str, Any]], ai_setup=None) -> None:
+        self.player_grid.load_setup(navy_setup)
+        self.opposite_grid.ai_setup = ai_setup or list()
+        self.turn_checker.turn = self.get_default_turn()
+        self.game_finished = self.restart = False
+        self.mainloop()
+
+    def on_quit(self) -> None:
+        self.player_grid.reset()
+        self.opposite_grid.reset()
+        self.objects.set_focus(None)
 
     def update(self):
         self.text_finish.set_visibility(self.game_finished)
@@ -471,5 +505,5 @@ class Gameplay(Window):
         self.turn_checker.turn = turn
         if self.turn_checker.turn is True:
             self.opposite_grid.set_box_clickable(True)
-        if self.turn_checker.turn is False and isinstance(self.ai, AI) and not self.player_grid.destroyed():
+        if self.turn_checker.turn is False and not self.client_socket.connected() and not self.player_grid.destroyed():
             self.after(1000, lambda: self.hit_a_box(self.player_grid, self.ai.play(self.player_grid.map)))

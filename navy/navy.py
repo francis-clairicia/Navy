@@ -12,6 +12,7 @@ from .navy_setup import NavySetup
 from .version import __version__
 
 class Credits(Dialog):
+
     def __init__(self, master: Window, **kwargs):
         Dialog.__init__(self, master=master, bg_color=GREEN, **kwargs)
         title_font = ("calibri", 32, "bold")
@@ -31,9 +32,10 @@ class Credits(Dialog):
     def place_objects(self):
         self.text.center = self.frame.center
 
-class PlayerServer(Window):
-    def __init__(self, master):
-        Window.__init__(self, master=master, bg_music=master.bg_music)
+class PlayerServer(Dialog):
+
+    def __init__(self, master, **kwargs):
+        Dialog.__init__(self, master=master, bg_color=GREEN_DARK, **kwargs)
         params_for_all_buttons = {
             "font": ("calibri", 30),
             "bg": GREEN,
@@ -42,20 +44,23 @@ class PlayerServer(Window):
             "outline": 3,
             "highlight_color": YELLOW
         }
-        self.port = 12800
-        self.frame = RectangleShape(0.5 * self.width, 0.5 * self.height, GREEN_DARK, outline=5)
+        self.start_game = master.start_game
         self.text_title = Text("Waiting for Player 2", ("calibri", 50))
-        self.text_ip_address = Text(f"IP address: {self.server_socket.ip}", ("calibri", 40))
-        self.text_port_of_connection = Text(f"Port: {self.port}", ("calibri", 40))
+        self.text_ip_address = Text(font=("calibri", 40))
+        self.text_port_of_connection = Text(font=("calibri", 40))
         self.button_cancel = Button(self, "Return to menu", callback=self.stop, **params_for_all_buttons)
         self.lets_play_countdown = CountDown(self, 3, "Player 2 connected.\nGame start in {seconds} seconds", font=("calibri", 35), color=YELLOW, justify="center")
 
-    def on_start_loop(self):
-        self.create_server(self.port, 1)
+    def on_dialog_start_loop(self):
+        try:
+            ip, port = self.create_server(12800, 1)
+            self.text_ip_address.message = f"IP address: {ip}"
+            self.text_port_of_connection.message = f"Port: {port}"
+        except OSError:
+            self.stop()
 
-    def on_quit(self):
-        self.server_socket.stop()
-        self.client_socket.stop()
+    def on_dialog_quit(self):
+        self.stop_connection()
 
     def place_objects(self):
         self.frame.move(center=self.center)
@@ -66,19 +71,20 @@ class PlayerServer(Window):
         self.button_cancel.move(centerx=self.frame.centerx, bottom=self.frame.bottom - 10)
 
     def update(self) -> None:
-        if len(self.server_socket.clients) > 1 and not self.lets_play_countdown.started():
-            self.server_socket.listen = 0
+        if self.get_server_clients_count() > 1 and not self.lets_play_countdown.started():
+            self.set_server_listen(0)
             self.text_title.hide()
             self.button_cancel.state = Button.DISABLED
             self.lets_play_countdown.start(at_end=self.play)
 
     def play(self):
-        NavySetup(1).mainloop()
+        self.start_game.mainloop()
         self.stop()
 
-class PlayerClient(Window):
-    def __init__(self, master):
-        Window.__init__(self, master=master, bg_music=master.bg_music)
+class PlayerClient(Dialog):
+
+    def __init__(self, master, **kwargs):
+        Dialog.__init__(self, master=master, bg_color=GREEN_DARK, **kwargs)
         params_for_all_buttons = {
             "font": ("calibri", 30),
             "bg": GREEN,
@@ -87,7 +93,7 @@ class PlayerClient(Window):
             "highlight_color": YELLOW,
             "outline": 3
         }
-        self.frame = RectangleShape(0.5 * self.width, 0.5 * self.height, GREEN_DARK, outline=5)
+        self.start_game = NavySetup(2)
         self.text_title = Text("Connect to Player 1", ("calibri", 50))
         self.ip = Entry(self, width=15, font=("calibri", 40), bg=GREEN, highlight_color=YELLOW, outline=2)
         self.text_ip_address = Text("IP address", ("calibri", 40), YELLOW)
@@ -99,9 +105,9 @@ class PlayerClient(Window):
         self.button_cancel = Button(self, "Return to menu", callback=self.stop, **params_for_all_buttons)
         self.lets_play_countdown = CountDown(self, 3, "Connected.\nGame start in {seconds} seconds", font=("calibri", 35), color=YELLOW, justify="center")
 
-    def on_quit(self):
+    def on_dialog_quit(self):
         self.disable_text_input()
-        self.client_socket.stop()
+        self.stop_connection()
 
     def place_objects(self):
         self.frame.move(center=self.center)
@@ -129,12 +135,13 @@ class PlayerClient(Window):
             self.lets_play_countdown.start(at_end=self.play)
 
     def play(self):
-        NavySetup(2).mainloop()
+        self.start_game.mainloop()
         self.stop()
 
 class Options(Dialog):
+
     def __init__(self, master: Window, **kwargs):
-        Dialog.__init__(self, master=master, bg_color=GREEN_DARK, outline=5, **kwargs)
+        Dialog.__init__(self, master=master, bg_color=GREEN_DARK, **kwargs)
         self.text_title = Text("Options", ("calibri", 50))
         params_for_all_scales = {
             "width": 0.45 * self.frame.w,
@@ -195,19 +202,28 @@ class NavyWindow(Window):
             "outline": 3,
             "highlight_color": YELLOW,
         }
+
+        params_for_dialogs = {
+            "outline": 5,
+            "hide_all_without": [self.bg, self.logo]
+        }
+
+        self.start_game = NavySetup(1)
+        self.multiplayer_server = PlayerServer(self, **params_for_dialogs)
+        self.multiplayer_client = PlayerClient(self, **params_for_dialogs)
+        self.dialog_credits = Credits(self, **params_for_dialogs)
+        self.dialog_options = Options(self, **params_for_dialogs)
+
         self.menu_buttons = ButtonListVertical(offset=30)
         self.menu_buttons.add(
-            Button(self, "Play against AI", **params_for_all_buttons, callback=self.single_player),
-            Button(self, "Play as P1", **params_for_all_buttons, callback=lambda: self.multiplayer_menu(PlayerServer)),
-            Button(self, "Play as P2", **params_for_all_buttons, callback=lambda: self.multiplayer_menu(PlayerClient)),
+            Button(self, "Play against AI", **params_for_all_buttons, callback=self.start_game.mainloop),
+            Button(self, "Play as P1", **params_for_all_buttons, callback=self.multiplayer_server.mainloop),
+            Button(self, "Play as P2", **params_for_all_buttons, callback=self.multiplayer_client.mainloop),
             Button(self, "Quit", **params_for_all_buttons, callback=self.stop)
         )
 
-        self.credits = Credits(self, hide_all_without=[self.bg, self.logo])
-        self.options = Options(self, hide_all_without=[self.bg, self.logo])
-
-        self.button_credits = Button(self, "Credits", callback=self.credits.mainloop, **params_for_all_buttons)
-        self.button_settings = Button(self, img=Image(RESOURCES.IMG["settings"], size=self.button_credits.height - 20), compound="center", callback=self.open_settings, **params_for_all_buttons)
+        self.button_credits = Button(self, "Credits", callback=self.dialog_credits.mainloop, **params_for_all_buttons)
+        self.button_settings = Button.withImageOnly(self, Image(RESOURCES.IMG["settings"], size=self.button_credits.height - 20), callback=self.dialog_options.mainloop, **params_for_all_buttons)
 
     def place_objects(self):
         self.bg.center = self.center
@@ -215,29 +231,6 @@ class NavyWindow(Window):
         self.menu_buttons.move(centerx=self.centerx, bottom=self.bottom - 20)
         self.button_settings.move(left=10, bottom=self.bottom - 10)
         self.button_credits.move(right=self.right - 10, bottom=self.bottom - 10)
-
-    def open_settings(self):
-        self.hide_all(without=[self.bg, self.logo])
-        Options(self).mainloop()
-        self.show_all()
-
-    def open_credits(self):
-        self.hide_all(without=[self.bg, self.logo])
-        Credits(self).mainloop()
-        self.show_all()
-
-    def single_player(self):
-        setup = NavySetup(1)
-        setup.mainloop()
-
-    def multiplayer_menu(self, player_class: Type[Union[PlayerServer, PlayerClient]]) -> None:
-        self.hide_all(without=[self.bg, self.logo])
-        try:
-            player = player_class(self)
-            player.mainloop()
-        except OSError:
-            pass
-        self.show_all()
 
 if __name__ == "__main__":
     NavyWindow().mainloop()

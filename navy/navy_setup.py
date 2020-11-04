@@ -11,7 +11,7 @@ from my_pygame import DrawableListHorizontal, DrawableListVertical
 from my_pygame import GREEN, GREEN_DARK, GREEN_LIGHT, WHITE, YELLOW, RED, TRANSPARENT
 from my_pygame import CountDown
 from my_pygame.vector import Vector2
-from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE
+from .constants import RESOURCES, NB_LINES_BOXES, NB_COLUMNS_BOXES, BOX_SIZE, SHIPS
 from .game import Gameplay
 
 class BoxSetup(Button):
@@ -188,10 +188,9 @@ class WaitEnemy(Window):
 class NavySetup(Window):
     def __init__(self, player_id: int):
         Window.__init__(self, bg_color=(0, 200, 255), bg_music=RESOURCES.MUSIC["setup"])
-        self.player_id = player_id
+        self.gameplay = Gameplay(player_id)
         self.count_down = CountDown(self, 60, "Time left: {seconds}", font=(None, 70), color=WHITE)
         self.start_count_down = lambda: self.count_down.start(at_end=self.timeout) if self.client_socket.connected() else None
-        self.start_count_down()
         params_for_all_buttons = {
             "bg": GREEN,
             "hover_bg": GREEN_LIGHT,
@@ -206,13 +205,7 @@ class NavySetup(Window):
                 box_line.add(BoxSetup(self, size=BOX_SIZE, pos=(i, j)))
             self.navy_grid.add(box_line)
         self.ships_list = DrawableListVertical(offset=70, justify="left")
-        ships = {
-            "carrier":      {"size": 4, "nb": 1, "offset": 0},
-            "battleship":   {"size": 3, "nb": 2, "offset": 30},
-            "destroyer":    {"size": 2, "nb": 3, "offset": 30},
-            "patroal_boat": {"size": 1, "nb": 4, "offset": 70}
-        }
-        for ship_name, ship_infos in ships.items():
+        for ship_name, ship_infos in SHIPS.items():
             ship_line = DrawableListHorizontal(offset=ship_infos["offset"])
             for _ in range(ship_infos["nb"]):
                 ship_line.add(ShipSetup(self, ship_name, ship_infos["size"]))
@@ -229,6 +222,9 @@ class NavySetup(Window):
     @property
     def boxes(self) -> Sequence[BoxSetup]:
         return self.navy_grid.drawable
+
+    def on_start_loop(self) -> None:
+        self.start_count_down()
 
     def place_objects(self) -> None:
         self.button_back.move(x=20, y=20)
@@ -277,10 +273,9 @@ class NavySetup(Window):
             WaitEnemy(self).mainloop()
             if not self.loop:
                 return
-        gameplay = Gameplay(self.player_id, self.create_setup(), ai_setup=ai_setup)
-        gameplay.mainloop()
-        if gameplay.restart:
-            self.reinit_all_ships()
+        self.gameplay.start(self.create_setup(), ai_setup=ai_setup)
+        self.reinit_all_ships()
+        if self.gameplay.restart:
             self.start_count_down()
         else:
             self.stop()

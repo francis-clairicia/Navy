@@ -4,8 +4,8 @@ import socket
 import select
 import struct
 import pickle
-from threading import Thread
 from typing import List, Any, Optional
+from .thread import threaded_function
 from .clock import Clock
 
 STRUCT_FORMAT_PREFIX = ">I"
@@ -26,11 +26,11 @@ def send_data(socket: socket.socket, data: bytes) -> None:
     except:
         pass
 
-class ServerSocket(Thread):
+class ServerSocket:
 
     def __init__(self):
-        Thread.__init__(self, daemon=True)
-        self.__port = 0
+        self.__thread = None
+        self.__port = -1
         self.__listen = 0
         self.__socket = None
         self.__clients = list()
@@ -42,7 +42,8 @@ class ServerSocket(Thread):
     def connected(self) -> bool:
         return isinstance(self.__socket, socket.socket)
 
-    def bind(self, port: int, listen: int):
+    def bind(self, port: int, listen: int) -> None:
+        self.stop()
         try:
             self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__socket.bind(("", port))
@@ -51,7 +52,7 @@ class ServerSocket(Thread):
         else:
             self.__port = port
         self.listen = listen
-        self.start()
+        self.__thread = self.__run()
 
     @property
     def ip(self) -> str:
@@ -75,7 +76,8 @@ class ServerSocket(Thread):
     def clients(self) -> List[socket.socket]:
         return self.__clients
 
-    def run(self) -> None:
+    @threaded_function
+    def __run(self) -> None:
         if not self.connected():
             return
         self.__loop = True
@@ -94,11 +96,13 @@ class ServerSocket(Thread):
         self.clients.clear()
         self.__socket.close()
         self.__socket = None
+        self.__port = -1
 
     def stop(self) -> None:
         if self.__loop:
             self.__loop = False
-            self.join()
+            self.__thread.join()
+            self.__thread = None
 
     def __check_for_connections(self) -> None:
         try:
@@ -114,12 +118,12 @@ class ServerSocket(Thread):
             clients_to_read = list()
         return clients_to_read
 
-class ClientSocket(Thread):
+class ClientSocket:
 
     QUIT_MESSAGE = "quit"
 
     def __init__(self):
-        Thread.__init__(self, daemon=True)
+        self.__thread = None
         self.__socket = None
         self.__loop = False
         self.__msg = dict()
@@ -127,13 +131,11 @@ class ClientSocket(Thread):
     def __del__(self) -> None:
         self.stop()
 
-    def quit_message(self) -> str:
-        return "quit"
-
     def connected(self) -> bool:
         return isinstance(self.__socket, socket.socket)
 
     def connect(self, server_address: str, server_port: int, timeout: int) -> bool:
+        self.stop()
         try:
             self.__socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.__socket.settimeout(timeout)
@@ -141,10 +143,11 @@ class ClientSocket(Thread):
             self.__socket.settimeout(None)
         except:
             self.__socket = None
-        self.start()
+        self.__thread = self.__run()
         return self.connected()
 
-    def run(self) -> None:
+    @threaded_function
+    def __run(self) -> None:
         if not self.connected():
             return
         self.__loop = True
@@ -171,7 +174,7 @@ class ClientSocket(Thread):
         if self.__loop:
             self.send(ClientSocket.QUIT_MESSAGE)
             self.__loop = False
-            self.join()
+            self.__thread.join()
 
     def send(self, msg: str, data: Optional[Any] = None) -> None:
         if self.connected():

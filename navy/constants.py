@@ -44,3 +44,11 @@ NAVY_GRID_SIZE = 500
 NB_LINES_BOXES = 10
 NB_COLUMNS_BOXES = 10
 BOX_SIZE = (NAVY_GRID_SIZE // NB_COLUMNS_BOXES, NAVY_GRID_SIZE // NB_LINES_BOXES)
+
+SHIPS = {
+    "carrier":      {"size": 4, "nb": 1, "offset": 0},
+    "battleship":   {"size": 3, "nb": 2, "offset": 30},
+    "destroyer":    {"size": 2, "nb": 3, "offset": 30},
+    "patroal_boat": {"size": 1, "nb": 4, "offset": 70}
+}
+NB_SHIPS = sum(ship["nb"] for ship in SHIPS.values())

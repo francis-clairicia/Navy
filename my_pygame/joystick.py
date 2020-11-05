@@ -2,7 +2,7 @@
 
 import os
 import sys
-from typing import Tuple, Union, Optional
+from typing import Tuple, Union, Optional, Iterator
 import pickle
 import pygame
 
@@ -236,3 +236,47 @@ class Joystick(object):
     AXIS_LEFT_Y = property(lambda self: self.__getitem__("AXIS_LEFT_Y"), lambda self, value: self.set_event("AXIS_LEFT_Y", *value))
     AXIS_RIGHT_X = property(lambda self: self.__getitem__("AXIS_RIGHT_X"), lambda self, value: self.set_event("AXIS_RIGHT_X", *value))
     AXIS_RIGHT_Y = property(lambda self: self.__getitem__("AXIS_RIGHT_Y"), lambda self, value: self.set_event("AXIS_RIGHT_Y", *value))
+
+class JoystickList(object):
+
+    __slots__ = ("__list")
+
+    def __init__(self):
+        self.__list = list()
+
+    def set(self, nb_joystick: int) -> None:
+        self.__list = [Joystick(i) for i in range(nb_joystick)]
+
+    def __iter__(self) -> Iterator[Joystick]:
+        return iter(self.__list)
+
+    def __getitem__(self, index: int) -> Union[Joystick, None]:
+        return self.get_joy_by_device_index(index)
+
+    def get_joy_by_device_index(self, index: int) -> Union[Joystick, None]:
+        for joy in self:
+            if joy.device_index == index:
+                return joy
+        return None
+
+    def get_joy_by_instance_id(self, instance_id: int) -> Union[Joystick, None]:
+        for joy in self:
+            if joy.id == instance_id:
+                return joy
+        return None
+
+    def event_connect(self, event: pygame.event.Event) -> None:
+        if self.connected():
+            return
+        if event.type in (pygame.CONTROLLERDEVICEADDED, pygame.JOYDEVICEADDED):
+            joystick = self.get_joy_by_device_index(event.device_index)
+            if joystick is not None:
+                joystick.event_connect(event)
+
+    def event_disconnect(self, event: pygame.event.Event) -> None:
+        if not self.connected():
+            return
+        if event.type in (pygame.CONTROLLERDEVICEREMOVED, pygame.JOYDEVICEREMOVED):
+            joystick = self.get_joy_by_instance_id(event.instance_id)
+            if joystick is not None:
+                joystick.event_disconnect(event)

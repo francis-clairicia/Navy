@@ -213,7 +213,7 @@ class NavySetup(Window):
         option_size = 50
         self.button_restart = Button.withImageOnly(self, Image(RESOURCES.IMG["reload_blue"], size=option_size), callback=self.reinit_all_ships, **params_for_all_buttons)
         self.button_random = Button.withImageOnly(self, Image(RESOURCES.IMG["random"], size=option_size), callback=self.shuffle, **params_for_all_buttons)
-        self.button_play = Button(self, "Play", font=(None, 40), callback=self.play, state=Button.DISABLED, **params_for_all_buttons)
+        self.button_play = Button(self, "Play", font=(None, 40), callback=self.play, **params_for_all_buttons)
 
     @property
     def ships(self) -> Sequence[ShipSetup]:
@@ -225,6 +225,9 @@ class NavySetup(Window):
 
     def on_start_loop(self) -> None:
         self.start_count_down()
+
+    def on_quit(self) -> None:
+        self.reinit_all_ships()
 
     def place_objects(self) -> None:
         self.button_back.move(x=20, y=20)
@@ -255,8 +258,8 @@ class NavySetup(Window):
         return setup
 
     def timeout(self):
-        if any(not ship.on_map for ship in self.ships):
-            self.shuffle()
+        for ship in filter(lambda ship: not ship.on_map, self.ships):
+            self.set_random_position_for_ship(ship)
         self.play()
 
     def play(self):

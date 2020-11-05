@@ -10,7 +10,7 @@ from .focusable import Focusable
 from .text import Text
 from .shape import RectangleShape
 from .list import DrawableList
-from .joystick import Joystick
+from .joystick import Joystick, JoystickList
 from .keyboard import Keyboard
 from .clock import Clock
 from .resources import RESOURCES
@@ -48,7 +48,7 @@ class Window(object):
     __show_fps = False
     __fps = 60
     __fps_obj = None
-    __joystick = list()
+    __joystick = JoystickList()
     __all_window_event_handler_dict = dict()
     __keyboard = Keyboard()
     __all_window_key_enabled = True
@@ -58,7 +58,7 @@ class Window(object):
     def __init__(self, master=None, size=(0, 0), flags=0, bg_color=(0, 0, 0), bg_music=None):
         Window.init_pygame(size, flags)
         self.__master = master
-        self.main_clock = pygame.time.Clock()
+        self.__main_clock = pygame.time.Clock()
         self.__loop = False
         self.objects = DrawableList()
         self.__event_handler_dict = dict()
@@ -94,8 +94,12 @@ class Window(object):
             status = pygame.init()
             if status[1] > 0:
                 print("Error on pygame initialization ({} modules failed to load)".format(status[1]), file=sys.stderr)
-                sys.exit(84)
+                sys.exit(1)
             Window.load_config()
+            Window.bind_event_all_window(pygame.JOYDEVICEADDED, Window.__joystick.event_connect)
+            Window.bind_event_all_window(pygame.CONTROLLERDEVICEADDED, Window.__joystick.event_connect)
+            Window.bind_event_all_window(pygame.JOYDEVICEREMOVED, Window.__joystick.event_disconnect)
+            Window.bind_event_all_window(pygame.CONTROLLERDEVICEREMOVED, Window.__joystick.event_disconnect)
         if pygame.display.get_surface() is None:
             if size[0] <= 0 or size[1] <= 0:
                 video_info = pygame.display.Info()
@@ -110,23 +114,9 @@ class Window(object):
             return True
         return bool(Window.__all_opened[0] == self)
 
-    def set_joystick(self, nb_joysticks: int):
-        Window.__joystick = [Joystick(i) for i in range(nb_joysticks)]
-        for joy in self.joystick:
-            self.bind_event_all_window(pygame.JOYDEVICEADDED, joy.event_connect)
-            self.bind_event_all_window(pygame.CONTROLLERDEVICEADDED, joy.event_connect)
-            self.bind_event_all_window(pygame.JOYDEVICEREMOVED, joy.event_disconnect)
-            self.bind_event_all_window(pygame.CONTROLLERDEVICEREMOVED, joy.event_disconnect)
-
     @property
-    def joystick(self) -> Sequence[Joystick]:
+    def joystick(self) -> JoystickList:
         return Window.__joystick
-
-    def joy_search_device_index_from_instance_id(self, instance_id: int):
-        for joy in self.joystick:
-            if joy.id == instance_id:
-                return joy.device_index
-        return -1
 
     @property
     def keyboard(self) -> Keyboard:
@@ -191,7 +181,7 @@ class Window(object):
             for callback in filter(lambda window_callback: window_callback.can_call(), self.__callback_after.copy()):
                 callback()
                 self.__callback_after.remove(callback)
-            self.main_clock.tick(Window.__fps)
+            self.__main_clock.tick(Window.__fps)
             self.objects.focus_mode_update()
             self.keyboard.update()
             self.update()
@@ -202,6 +192,7 @@ class Window(object):
     def stop(self, force=False, sound=None):
         self.__loop = False
         self.on_quit()
+        self.set_focus(None)
         if sound:
             self.play_sound(sound)
         if self.main_window or force is True:
@@ -261,7 +252,7 @@ class Window(object):
 
     def fps_update(self):
         if Window.__show_fps:
-            Window.__fps_obj.message = f"{round(self.main_clock.get_fps())} FPS"
+            Window.__fps_obj.message = f"{round(self.__main_clock.get_fps())} FPS"
         self.after(500, self.fps_update)
 
     def show_all(self, without=list()):
@@ -287,10 +278,12 @@ class Window(object):
                 callback(key_value, self.keyboard.is_pressed(key_value))
         for callback in self.__mosue_handler_list:
             callback(pygame.mouse.get_pos())
-        for joy_id in filter(lambda joy: joy in range(len(self.joystick)), self.__joystick_state_dict.keys()):
-            for action, callback_list in self.__joystick_state_dict[joy_id].items():
+        for device_index in self.__joystick_state_dict:
+            if self.joystick[device_index] is None:
+                continue
+            for action, callback_list in self.__joystick_state_dict[device_index].items():
                 for callback in callback_list:
-                    callback(self.joystick[joy_id].get_value(action))
+                    callback(self.joystick[device_index].get_value(action))
         for event in pygame.event.get():
             if event.type == pygame.QUIT \
             or (event.type == pygame.KEYDOWN and event.key == pygame.K_F4 and (event.mod & pygame.KMOD_LALT)):
@@ -299,14 +292,14 @@ class Window(object):
                 for callback in self.__key_handler_dict.get(event.key, tuple()):
                     callback(event)
             elif event.type in [pygame.JOYBUTTONDOWN, pygame.JOYAXISMOTION, pygame.JOYHATMOTION]:
-                joy = self.joy_search_device_index_from_instance_id(event.instance_id)
+                joystick = self.joystick.get_joy_by_instance_id(event.instance_id)
                 joystick_handler_dict = self.__joystick_handler_dict.get(joy, dict())
                 event_handler = {
                     pygame.JOYBUTTONDOWN: {"event_type": "button", "index": getattr(event, "button", -1)},
                     pygame.JOYAXISMOTION: {"event_type": "axis", "index": getattr(event, "axis", -1)},
                     pygame.JOYHATMOTION:  {"event_type": "hat", "index": getattr(event, "hat", -1), "hat_value": getattr(event, "value", None)},
                 }
-                for callback in joystick_handler_dict.get(self.joystick[joy].search_key(**event_handler[event.type]), tuple()):
+                for callback in joystick_handler_dict.get(joystick.search_key(**event_handler[event.type]), tuple()):
                     callback(event)
             for callback in self.__event_handler_dict.get(event.type, tuple()):
                 callback(event)

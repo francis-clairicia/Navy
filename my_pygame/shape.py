@@ -39,8 +39,8 @@ class Shape(Drawable):
 
 class RectangleShape(Shape):
 
-    def __init__(self, width: int, height: int, color: tuple, outline=0, outline_color=(0, 0, 0), **kwargs):
-        Shape.__init__(self, pygame.Surface((int(width), int(height)), flags=pygame.SRCALPHA), color, outline, outline_color, **kwargs)
+    def __init__(self, width: int, height: int, color: tuple, **kwargs):
+        Shape.__init__(self, pygame.Surface((int(width), int(height)), flags=pygame.SRCALPHA), color, **kwargs)
 
     def before_drawing(self, surface: pygame.Surface) -> None:
         self.fill(self.color)
@@ -50,8 +50,8 @@ class RectangleShape(Shape):
             pygame.draw.rect(surface, self.outline_color, self.rect, self.outline)
 
 class CircleShape(Shape):
-    def __init__(self, radius: int, color: tuple, outline=0, outline_color=(0, 0, 0), **kwargs):
-        Shape.__init__(self, pygame.Surface((abs(radius) * 2, abs(radius) * 2), flags=pygame.SRCALPHA), **kwargs)
+    def __init__(self, radius: int, color: tuple, **kwargs):
+        Shape.__init__(self, pygame.Surface((abs(radius) * 2, abs(radius) * 2), flags=pygame.SRCALPHA), color, **kwargs)
         self.radius = radius
 
     def before_drawing(self, surface: pygame.Surface) -> None:

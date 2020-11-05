@@ -341,6 +341,10 @@ class AI:
         for x, y in [first, second]:
             if (x, y) in navy_map and navy_map[x, y] == Navy.BOX_NO_HIT:
                 potential_boxes.append((x, y))
+        if not potential_boxes:
+            print_navy_map(navy_map)
+            print(f"IndexError: {e}")
+            exit(1)
         return random.choice(potential_boxes)
 
     def find_ship(self, navy_map: Dict[Tuple[int, int], int], line: int, column: int) -> Tuple[int, int]:

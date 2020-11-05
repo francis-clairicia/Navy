@@ -22,6 +22,8 @@ class Button(Clickable, RectangleShape):
                  highlight_color=(0, 0, 255),
                  **kwargs):
         self.__text = Text(text, font, fg, justify=Text.T_CENTER, img=img, compound=compound)
+        self.__text_offset_move = 0
+        self.__text_offset = kwargs.pop("offset", 0)
         if not isinstance(size, (list, tuple)) or len(size) != 2:
             size = (self.__text.w + 20, self.__text.h + 20)
         RectangleShape.__init__(self, *size, color=bg, outline=outline, outline_color=outline_color, **kwargs)
@@ -86,6 +88,7 @@ class Button(Clickable, RectangleShape):
     def after_drawing(self, surface: pygame.Surface) -> None:
         RectangleShape.after_drawing(self, surface)
         self.__text.move(center=self.center)
+        self.__text.move_ip(0, self.__text_offset_move)
         self.__text.draw(surface)
 
     def __set_color(self, button_state: str) -> None:
@@ -93,36 +96,39 @@ class Button(Clickable, RectangleShape):
         self.__text.color = self.__fg[self.state][button_state]
 
     def on_hover(self) -> None:
-        self.__set_color("hover")
+        self.__set_color("active" if self.active else "hover")
 
     def on_leave(self) -> None:
         self.__set_color("normal")
 
     def on_active_set(self) -> None:
         self.__set_color("active")
+        self.__text_offset_move = self.__text_offset
 
     def on_active_unset(self) -> None:
         self.__set_color("normal")
+        self.__text_offset_move = 0
 
     def on_change_state(self) -> None:
         if self.hover:
             self.on_hover()
-        elif self.active:
-            self.on_active_set()
         else:
             self.on_leave()
 
 class ImageButton(Button):
 
-    def __init__(self, master: Window, img: pygame.Surface, hover_img: Optional[pygame.Surface] = None, active_img: Optional[pygame.Surface] = None, size=None, width=None, height=None, rotate=0, **kwargs):
+    def __init__(self, master: Window, img: pygame.Surface, hover_img: Optional[pygame.Surface] = None, active_img: Optional[pygame.Surface] = None, size=None, width=None, height=None, rotate=0, offset=3, **kwargs):
         kwargs["bg"] = kwargs["hover_bg"] = kwargs["active_bg"] = kwargs["disabled_bg"] = (0, 0, 0, 0)
         kwargs["outline"] = 0
-        Button.__init__(self, master, img=Image(img, size=size, width=width, height=height, rotate=rotate), compound="center", **kwargs)
-        self.__default_img = self.img
+        kwargs["compound"] = "center"
+        kwargs["offset"] = offset
+        self.__default_img = Image(img, size=size, width=width, height=height, rotate=rotate)
         self.__hover_img = Image(hover_img, size=size, width=width, height=height, rotate=rotate) if isinstance(hover_img, pygame.Surface) else None
         self.__active_img = Image(active_img, size=size, width=width, height=height, rotate=rotate) if isinstance(active_img, pygame.Surface) else None
+        Button.__init__(self, master, img=self.__default_img, **kwargs)
 
     def on_hover(self):
+        Button.on_hover(self)
         if self.__active_img and self.active:
             self.img = self.__active_img
         elif self.__hover_img and self.hover:
@@ -131,8 +137,10 @@ class ImageButton(Button):
             self.img = self.__default_img
 
     def on_active_set(self):
+        Button.on_active_set(self)
         if self.__active_img:
             self.img = self.__active_img
 
     def on_active_unset(self):
+        Button.on_active_unset(self)
         self.img = self.__default_img

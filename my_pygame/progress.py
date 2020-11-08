@@ -3,6 +3,7 @@
 import pygame
 from .text import Text
 from .shape import RectangleShape
+from .colors import TRANSPARENT
 
 class ProgressBar(RectangleShape):
 
@@ -12,12 +13,12 @@ class ProgressBar(RectangleShape):
     S_RIGHT = "right"
     S_INSIDE = "inside"
 
-    def __init__(self, width: int, height: int, color: tuple, scale_color: tuple, outline=2, from_=0, to=1, default=None, **kwargs):
-        RectangleShape.__init__(self, width, height, (0, 0, 0, 0), outline=outline, **kwargs)
+    def __init__(self, width: int, height: int, color: pygame.Color, scale_color: pygame.Color, outline=2, from_=0, to=1, default=None, **kwargs):
+        RectangleShape.__init__(self, width, height, TRANSPARENT, outline=outline, **kwargs)
         if to <= from_:
             raise ValueError("end value 'to' must be greather than 'from'")
-        self.__start = from_
-        self.__end = to
+        self.start = from_
+        self.end = to
         self.percent = 0
         self.__scale_rect = RectangleShape(0, height, scale_color, **kwargs)
         self.__bg_rect = RectangleShape(width, height, color, **kwargs)
@@ -90,11 +91,35 @@ class ProgressBar(RectangleShape):
         self.__label_text_side = str()
 
     @property
+    def color(self) -> pygame.Color:
+        return TRANSPARENT
+
+    @color.setter
+    def color(self, value: pygame.Color) -> None:
+        pass
+
+    @property
+    def bg_color(self) -> pygame.Color:
+        return self.__bg_rect.color
+
+    @bg_color.setter
+    def bg_color(self, value: pygame.Color) -> None:
+        self.__bg_rect.color = value
+
+    @property
+    def scale_color(self) -> pygame.Color:
+        return self.__scale_rect.color
+
+    @scale_color.setter
+    def scale_color(self, value: pygame.Color) -> None:
+        self.__scale_rect.color = value
+
+    @property
     def percent(self) -> float:
         return float(self.__percent)
 
     @percent.setter
-    def percent(self, value: float):
+    def percent(self, value: float) -> None:
         if value > 1:
             value = 1
         elif value < 0:
@@ -107,10 +132,26 @@ class ProgressBar(RectangleShape):
         return float(self.__value)
 
     @value.setter
-    def value(self, value: float):
+    def value(self, value: float) -> None:
         if value > self.__end:
             value = self.__end
         elif value < self.__start:
             value = self.__start
         self.__value = value
         self.__percent = (self.__value - self.__start) / (self.__end - self.__start)
+
+    @property
+    def start(self) -> float:
+        return self.__start
+
+    @start.setter
+    def start(self, value: float) -> None:
+        self.__start = float(value)
+
+    @property
+    def end(self) -> float:
+        return self.__end
+
+    @end.setter
+    def end(self, value: float) -> None:
+        self.__end = float(value)

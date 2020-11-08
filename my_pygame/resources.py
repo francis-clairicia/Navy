@@ -2,9 +2,10 @@
 
 import os
 import pygame
-from typing import Tuple, Union, Dict, List, Any
+from typing import Tuple, Union, Dict, List, Any, Iterator
+from .thread import threaded_function
 
-def find_in_iterable(iterable, *key_before, valid_callback=None):
+def find_in_iterable(iterable, *key_before, valid_callback=None) -> Iterator[Tuple[Union[int, str], ...]]:
     if isinstance(iterable, dict):
         for key, value in iterable.items():
             yield from find_in_iterable(value, *key_before, key, valid_callback=valid_callback)
@@ -31,21 +32,56 @@ def find_value_in_container(key_path: Tuple[Union[int, str], ...], container: Di
 
 class Resources:
 
-    __slots__ = ("__img", "__font", "__music", "__sfx")
+    __slots__ = ("__img", "__font", "__music", "__sfx", "__loaded")
 
     def __init__(self):
         self.__img = dict()
         self.__font = dict()
         self.__music = dict()
         self.__sfx = dict()
+        self.__loaded = 0
 
-    def load(self):
-        for key_path in find_in_iterable(self.__img, valid_callback=os.path.isfile):
-            key, container = travel_container(key_path, self.__img)
-            container[key] = pygame.image.load(container[key]).convert_alpha()
-        for key_path in find_in_iterable(self.__sfx, valid_callback=os.path.isfile):
-            key, container = travel_container(key_path, self.__sfx)
-            container[key] = pygame.mixer.Sound(container[key])
+    @property
+    def loaded(self) -> int:
+        return self.__loaded
+
+    @property
+    def img_to_load(self) -> Iterator[Tuple[Union[int, str], ...]]:
+        return find_in_iterable(self.__img, valid_callback=os.path.isfile)
+
+    @property
+    def font_to_load(self) -> Iterator[Tuple[Union[int, str], ...]]:
+        return find_in_iterable(self.__font, valid_callback=lambda path: not os.path.isfile(path))
+
+    @property
+    def music_to_load(self) -> Iterator[Tuple[Union[int, str], ...]]:
+        return find_in_iterable(self.__music, valid_callback=lambda path: not os.path.isfile(path))
+
+    @property
+    def sfx_to_load(self) -> Iterator[Tuple[Union[int, str], ...]]:
+        return find_in_iterable(self.__sfx, valid_callback=os.path.isfile)
+
+    def __len__(self) -> int:
+        return sum(len(list(iterator)) for iterator in [self.img_to_load, self.font_to_load, self.music_to_load, self.sfx_to_load])
+
+    def load(self) -> None:
+        if self.__loaded:
+            return
+        loading_method = [
+            (self.__img, self.img_to_load, lambda resource: pygame.image.load(resource).convert_alpha()),
+            (self.__font, self.font_to_load, lambda resource: None),
+            (self.__music, self.music_to_load, lambda resource: None),
+            (self.__sfx, self.sfx_to_load, lambda resource: pygame.mixer.Sound(resource))
+        ]
+        for resources_container, resources_finder, resources_loader in loading_method:
+            for key_path in resources_finder:
+                key, container = travel_container(key_path, resources_container)
+                container[key] = resources_loader(container[key])
+                self.__loaded += 1
+
+    @threaded_function
+    def threaded_load(self) -> None:
+        self.load()
 
     def set_sfx_volume(self, volume: float, state: bool) -> float:
         if volume < 0:
@@ -75,9 +111,13 @@ class Resources:
     def get_sfx(self, *key_path) -> pygame.mixer.Sound:
         return find_value_in_container(key_path, self.__sfx)
 
-    IMG = property(lambda self: self.__img, lambda self, value: self.__img.update(value if isinstance(value, dict) else dict()))
-    FONT = property(lambda self: self.__font, lambda self, value: self.__font.update(value if isinstance(value, dict) else dict()))
-    MUSIC = property(lambda self: self.__music, lambda self, value: self.__music.update(value if isinstance(value, dict) else dict()))
-    SFX = property(lambda self: self.__sfx, lambda self, value: self.__sfx.update(value if isinstance(value, dict) else dict()))
+    def __add_to_dict(self, resource_dict: dict, resources: dict) -> None:
+        if not self.__loaded and isinstance(resources, dict):
+            resource_dict.update(resources)
+
+    IMG = property(lambda self: self.__img, lambda self, value: self.__add_to_dict(self.__img, value))
+    FONT = property(lambda self: self.__font, lambda self, value: self.__add_to_dict(self.__font, value))
+    MUSIC = property(lambda self: self.__music, lambda self, value: self.__add_to_dict(self.__music, value))
+    SFX = property(lambda self: self.__sfx, lambda self, value: self.__add_to_dict(self.__sfx, value))
 
 RESOURCES = Resources()

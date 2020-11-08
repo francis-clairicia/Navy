@@ -3,11 +3,12 @@
 from typing import Tuple, Optional, Any, Union, Callable
 import pygame
 from pygame.sprite import Sprite
+from .surface import create_surface
 from .vector import Vector2
 
 class Drawable(Sprite):
 
-    def __init__(self, surface: Optional[pygame.Surface] = pygame.Surface((0, 0), flags=pygame.SRCALPHA), rotate=0, **kwargs):
+    def __init__(self, surface: Optional[pygame.Surface] = None, rotate=0, **kwargs):
         Sprite.__init__(self)
         self.__surface = self.__mask = None
         self.__rect = pygame.Rect(0, 0, 0, 0)
@@ -18,26 +19,27 @@ class Drawable(Sprite):
         self.__valid_size = True
         self.__animation_started = False
         self.__animation_params = dict()
+        self.__animation_window_callback = None
         self.image = self.resize_surface(surface, **kwargs)
         self.rotate(rotate)
 
     @classmethod
     def from_size(cls, size: Tuple[int, int], **kwargs):
-        return cls(pygame.Surface(size, flags=pygame.SRCALPHA), **kwargs)
+        return cls(create_surface(size), **kwargs)
 
-    def __getitem__(self, name: str):
+    def __getitem__(self, name: str) -> Union[int, Tuple[int, int]]:
         return getattr(self.rect, name)
 
-    def __setitem__(self, name: str, value: Any):
+    def __setitem__(self, name: str, value: Any) -> None:
         self.move(**{name: value})
 
-    def fill(self, color: Union[Tuple[int, int, int], Tuple[int, int, int, int]]) -> None:
+    def fill(self, color: pygame.Color) -> None:
         self.image.fill(color)
-        self.__mask = pygame.mask.from_surface(self.__surface)
+        self.mask_update()
 
     def blit(self, source, dest, area=None, special_flags=0) -> pygame.Rect:
         rect = self.image.blit(source, dest, area=area, special_flags=special_flags)
-        self.__mask = pygame.mask.from_surface(self.image)
+        self.mask_update()
         return rect
 
     def show(self) -> None:
@@ -61,7 +63,7 @@ class Drawable(Sprite):
         if isinstance(surface, Drawable):
             surface = surface.image
         elif not isinstance(surface, pygame.Surface):
-            surface = pygame.Surface((0, 0), flags=pygame.SRCALPHA)
+            surface = create_surface((0, 0))
         self.__surface = surface
         self.__rect = self.__surface.get_rect(**self.__former_moves)
         self.mask_update()
@@ -118,7 +120,7 @@ class Drawable(Sprite):
         self.__rect = self.__surface.get_rect(x=self.__x, y=self.__y)
         self.__former_moves = {"x": self.__x, "y": self.__y}
 
-    def animate_move(self, master, milliseconds: float, speed=1, after_move=None, **kwargs):
+    def animate_move(self, master, milliseconds: float, speed=1, after_move=None, **kwargs) -> None:
         if milliseconds <= 0 or speed <= 0:
             self.move(**kwargs)
         else:
@@ -148,13 +150,15 @@ class Drawable(Sprite):
         else:
             direction.scale_to_length(speed)
             self.move_ip(direction.x, direction.y)
-            master.after(milliseconds, lambda: self.__animate_move(**self.__animation_params))
+            self.__animation_window_callback = master.after(milliseconds, lambda: self.__animate_move(**self.__animation_params))
 
     def animate_move_started(self) -> bool:
         return self.__animation_started
 
-    def animate_move_stop(self):
+    def animate_move_stop(self) -> None:
         self.__animation_started = False
+        if "master" in self.__animation_params:
+            self.__animation_params["master"].remove_window_callback(self.__animation_window_callback)
 
     def animate_move_restart(self):
         if not self.__animation_started and self.__animation_params:
@@ -179,6 +183,8 @@ class Drawable(Sprite):
             scale_func = pygame.transform.smoothscale
         else:
             scale_func = pygame.transform.scale
+        if not isinstance(surface, pygame.Surface):
+            surface = create_surface((0, 0))
         w, h = surface.get_size()
         if isinstance(size, (list, tuple)):
             width, height = size
@@ -191,13 +197,13 @@ class Drawable(Sprite):
         max_width = round(max_width) if isinstance(max_width, (int, float)) else None
         max_height = round(max_height) if isinstance(max_height, (int, float)) else None
         if isinstance(min_width, int):
-            width = max(min_width, width) if isinstance(width, int) else min_width
+            width = max(min_width, width, w) if isinstance(width, int) else max(min_width, w)
+        elif isinstance(max_width, int):
+            width = min(max_width, width, w) if isinstance(width, int) else min(max_width, w)
         if isinstance(min_height, int):
-            height = max(min_height, height) if isinstance(height, int) else min_height
-        if isinstance(max_width, int):
-            width = min(max_width, width) if isinstance(width, int) else max_width
-        if isinstance(max_height, int):
-            height = min(max_height, height) if isinstance(height, int) else max_height
+            height = max(min_height, height, h) if isinstance(height, int) else max(min_height, h)
+        elif isinstance(max_height, int):
+            height = min(max_height, height, h) if isinstance(height, int) else min(max_height, h)
         if isinstance(width, int) and isinstance(height, int):
             surface = scale_func(surface, (width, height))
         elif isinstance(width, int):

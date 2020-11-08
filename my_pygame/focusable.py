@@ -1,6 +1,7 @@
 # -*- coding: Utf-8 -*
 
 import pygame
+from .colors import BLUE
 
 class Focusable:
 
@@ -13,13 +14,13 @@ class Focusable:
     ON_TOP = "on_top"
     ON_BOTTOM = "on_bottom"
 
-    def __init__(self, master, highlight_color=(0, 0, 255), highlight_thickness=2):
+    def __init__(self, master, highlight_color=BLUE, highlight_thickness=2):
         self.__focus = False
         self.__side = dict.fromkeys((Focusable.ON_LEFT, Focusable.ON_RIGHT, Focusable.ON_TOP, Focusable.ON_BOTTOM))
         self.__take_focus = True
         self.__from_master = False
         self.__master = master
-        self.__highlight_color = highlight_color
+        self.__highlight_color = pygame.Color(highlight_color)
         self.__highlight_thickness = highlight_thickness
 
     @property
@@ -46,12 +47,13 @@ class Focusable:
             if side in self.__side and isinstance(obj, Focusable):
                 self.__side[side] = obj
 
-    def remove_obj_on_side(self, *sides: str):
+    def remove_obj_on_side(self, *sides: str) -> None:
         for side in sides:
             if side in self.__side:
                 self.__side[side] = None
 
-    def focus_drawing(self, surface: pygame.Surface):
+    def focus_drawing(self, surface: pygame.Surface) -> None:
+        self.focus_update()
         if not self.has_focus():
             return
         if hasattr(self, "rect"):
@@ -59,7 +61,10 @@ class Focusable:
             if outline <= 0:
                 outline = self.__highlight_thickness
             if outline > 0:
-                pygame.draw.rect(surface, self.__highlight_color, getattr(self, "rect"), width=outline)
+                getattr(self, "focus_drawing_function", self.__default_focus_drawing_func)(surface, self.__highlight_color, outline)
+
+    def __default_focus_drawing_func(self, surface: pygame.Surface, highlight_color: pygame.Color, highlight_thickness: int) -> None:
+        pygame.draw.rect(surface, highlight_color, getattr(self, "rect"), width=highlight_thickness)
 
     def has_focus(self) -> bool:
         return self.__focus
@@ -80,11 +85,11 @@ class Focusable:
         if self.has_focus():
             self.__master.remove_focus(self)
 
-    def focus_update(self):
+    def focus_update(self) -> None:
         pass
 
-    def on_focus_set(self):
+    def on_focus_set(self) -> None:
         pass
 
-    def on_focus_leave(self):
+    def on_focus_leave(self) -> None:
         pass

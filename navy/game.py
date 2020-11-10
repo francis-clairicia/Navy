@@ -316,6 +316,10 @@ class TurnArrow(Sprite):
 class AI:
     def __init__(self):
         self.box_hitted = list()
+        self.possibilities = list()
+
+    def reset(self) -> None:
+        self.box_hitted.clear()
         self.possibilities = [(i, j) for i in range(NB_LINES_BOXES) for j in range(NB_COLUMNS_BOXES)]
 
     def play(self, navy_map: Dict[Tuple[int, int], int]) -> Tuple[int, int]:
@@ -436,6 +440,7 @@ class Gameplay(Window):
         self.opposite_grid.ai_setup = ai_setup or list()
         self.turn_checker.turn = self.get_default_turn()
         self.game_finished = self.restart = False
+        self.ai.reset()
         self.mainloop()
 
     def on_quit(self) -> None:
